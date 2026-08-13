@@ -13,8 +13,16 @@ open index.html          # macOS
 xdg-open index.html      # Linux
 ```
 
-Or publish it: **Settings → Pages → Deploy from branch**, pick the branch and
-`/ (root)`. It becomes a normal URL you can bookmark on your phone.
+## Published site
+
+<https://littlewave.github.io/Edward-AI-learning-roadmap-/>
+
+Served straight from `main` via **Settings → Pages → Source: Deploy from a
+branch → `main` / `(root)`**. No build step and no Actions workflow — GitHub
+serves `index.html` as-is, and any push to `main` republishes within a minute.
+
+`.nojekyll` is present so GitHub skips Jekyll processing and copies the file
+through untouched.
 
 ## How progress works
 
