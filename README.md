@@ -75,13 +75,24 @@ Each module:
   tier:"Core Mechanics",
   keystone:true,           // optional flag
   why:"...",               // why this module earns its hours
-  concepts:[ "..." ],      // the 20% worth learning
+  concepts:[               // the 20% worth learning
+    {t:"the concept",      // shown in the list
+     e:"the essence",      // 2–3 sentences: the core idea
+     g:"you've got it when…", // the concrete bar for 'can explain'
+     r:0}                  // index into resources[] — where to learn it
+  ],
   skip:[ "..." ],          // the 80% you're consciously not learning yet
-  build:"...",             // the hands-on task
+  build:{goal:"...", steps:["..."], done:"what finished looks like"},
   resources:[ {t:"docs", n:"name", u:"https://…", note:"…", star:true} ],
-  checks:[ {q:"question", rubric:["what a strong answer contains"]} ]
+  checks:[ {q:"question", hint:"which concepts it draws on and the essence needed",
+            rubric:["what a strong answer contains"]} ]
 }
 ```
+
+Each concept also generates a **tutor prompt** (copy button inside the
+expanded row): a prompt that has Claude teach that single concept with a
+work-grounded example, quiz you three questions deep, and grade you against
+the concept's "you've got it when" bar.
 
 Adding or removing a concept shifts that module's percentage, since concept
 score is an average. Changing an `id` orphans its saved progress.
