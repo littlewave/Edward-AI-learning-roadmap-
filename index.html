@@ -1563,11 +1563,27 @@ document.getElementById("themeBtn").addEventListener("click", ()=>{
 });
 
 /* ---- export / import -------------------------------------------------- */
-document.getElementById("exportBtn").addEventListener("click", ()=>{
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+document.getElementById("exportBtn").addEventListener("click", async ()=>{
+  const json = JSON.stringify(state,null,2);
+  const filename = `ai-roadmap-progress-${new Date().toISOString().slice(0,10)}.json`;
+  // In the claude.ai artifact viewer, downloads go through the runtime;
+  // on GitHub Pages or a local file, the plain <a download> path works.
+  const dl = (typeof claude !== "undefined" && claude.use) ? await claude.use("downloads") : null;
+  if(dl){
+    try{
+      await dl.save({filename, data: json});
+      toast("Progress exported");
+    }catch(err){
+      if(err && err.code === "declined") toast("Export cancelled");
+      else if(err && err.code === "rate_limited") toast("A save prompt is already open — try again in a moment");
+      else toast("Export failed here — this also works on the GitHub Pages copy");
+    }
+    return;
+  }
+  const blob = new Blob([json], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `ai-roadmap-progress-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
   toast("Progress exported");
