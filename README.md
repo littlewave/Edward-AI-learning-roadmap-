@@ -13,8 +13,16 @@ open index.html          # macOS
 xdg-open index.html      # Linux
 ```
 
-Or publish it: **Settings → Pages → Deploy from branch**, pick the branch and
-`/ (root)`. It becomes a normal URL you can bookmark on your phone.
+## Published site
+
+<https://littlewave.github.io/Edward-AI-learning-roadmap-/>
+
+Served straight from `main` via **Settings → Pages → Source: Deploy from a
+branch → `main` / `(root)`**. No build step and no Actions workflow — GitHub
+serves `index.html` as-is, and any push to `main` republishes within a minute.
+
+`.nojekyll` is present so GitHub skips Jekyll processing and copies the file
+through untouched.
 
 ## How progress works
 
@@ -67,13 +75,24 @@ Each module:
   tier:"Core Mechanics",
   keystone:true,           // optional flag
   why:"...",               // why this module earns its hours
-  concepts:[ "..." ],      // the 20% worth learning
+  concepts:[               // the 20% worth learning
+    {t:"the concept",      // shown in the list
+     e:"the essence",      // 2–3 sentences: the core idea
+     g:"you've got it when…", // the concrete bar for 'can explain'
+     r:0}                  // index into resources[] — where to learn it
+  ],
   skip:[ "..." ],          // the 80% you're consciously not learning yet
-  build:"...",             // the hands-on task
+  build:{goal:"...", steps:["..."], done:"what finished looks like"},
   resources:[ {t:"docs", n:"name", u:"https://…", note:"…", star:true} ],
-  checks:[ {q:"question", rubric:["what a strong answer contains"]} ]
+  checks:[ {q:"question", hint:"which concepts it draws on and the essence needed",
+            rubric:["what a strong answer contains"]} ]
 }
 ```
+
+Each concept also generates a **tutor prompt** (copy button inside the
+expanded row): a prompt that has Claude teach that single concept with a
+work-grounded example, quiz you three questions deep, and grade you against
+the concept's "you've got it when" bar.
 
 Adding or removing a concept shifts that module's percentage, since concept
 score is an average. Changing an `id` orphans its saved progress.
