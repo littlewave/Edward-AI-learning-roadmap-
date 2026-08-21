@@ -62,6 +62,26 @@ Use **Export** in the sidebar before switching machines or clearing site data,
 and **Import** to restore. Export also gives you a plain JSON file you can
 commit here if you want history.
 
+## Cross-device sync
+
+The sidebar's **Set up sync** connects the app to a **private GitHub Gist**
+that holds the same JSON Export produces. After a one-time token paste per
+device, the app pulls the latest progress on open and auto-pushes a few
+seconds after every change; **Sync now** forces a round-trip.
+
+- Token: create a personal access token with **only the gist scope**
+  (github.com → Settings → Developer settings → Personal access tokens).
+  It is stored in that browser's `localStorage` only — don't connect on a
+  shared computer. Disconnect clears it.
+- First device creates the gist; other devices paste the same token and the
+  app finds the gist by its filename (`ai-roadmap-progress.json`).
+- Conflicts are last-write-wins by timestamp — fine for one person, but
+  finish on one device before picking up another.
+- Local storage remains the source of truth: if GitHub is unreachable the
+  app keeps working and shows "Offline — saved locally".
+- The claude.ai artifact viewer blocks external requests, so sync only works
+  on the GitHub Pages copy or a local file.
+
 ## Editing the curriculum
 
 The content is a single `ROADMAP` array near the top of the `<script>` block.

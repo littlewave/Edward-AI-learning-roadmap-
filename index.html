@@ -174,6 +174,22 @@ button{font:inherit;color:inherit;cursor:pointer}
 .spine-pct{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums;flex:none}
 .rail-foot{padding:14px 22px 0;margin-top:14px;border-top:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:8px}
 
+/* ---- sync */
+.sync{padding:12px 22px 0;margin-top:12px;border-top:1px solid var(--rule)}
+.sync-status{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--node-empty);flex:none}
+.dot.good{background:var(--good)}
+.dot.warn{background:var(--warn)}
+.dot.bad{background:var(--signal)}
+.sync-btns{display:flex;flex-wrap:wrap;gap:8px}
+.sync-panel{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.sync-help{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin:0}
+.sync-panel input{
+  font:inherit;font-size:12px;font-family:var(--mono);
+  background:var(--sunken);color:var(--ink);
+  border:1px solid var(--rule);border-radius:var(--r);padding:7px 9px;width:100%;
+}
+
 /* ============================================================ CARDS */
 .card{
   background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
@@ -407,6 +423,19 @@ textarea::placeholder{color:var(--ink-3)}
       <button class="btn" id="exportBtn">Export</button>
       <button class="btn" id="importBtn">Import</button>
       <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <div class="sync">
+      <div class="sync-status"><span class="dot" id="syncDot"></span><span id="syncMsg">Sync not set up</span></div>
+      <div class="sync-btns" id="syncButtons"></div>
+      <form class="sync-panel" id="syncPanel" hidden>
+        <p class="sync-help">Paste a GitHub token with only the <strong>gist</strong> scope. Create one at github.com → Settings → Developer settings → Personal access tokens.</p>
+        <input type="password" id="syncToken" placeholder="github_pat_… or ghp_…" autocomplete="off" spellcheck="false">
+        <div class="sync-btns">
+          <button class="btn primary" type="submit">Connect</button>
+          <button class="btn" type="button" id="syncCancel">Cancel</button>
+        </div>
+        <p class="sync-help">The token stays in this browser only — don't connect on a shared computer. Your progress gist is private to your GitHub account.</p>
+      </form>
     </div>
   </nav>
   <main class="main" id="main"></main>
@@ -1123,8 +1152,10 @@ function load(){
   }catch(e){ return blank(); }
 }
 function save(){
+  state.ts = Date.now();
   try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
   catch(e){ toast("Could not save — storage blocked"); }
+  schedulePush();
 }
 function ms(id){
   if(!state.m[id]) state.m[id] = {c:{}, build:false, checks:{}, answers:{}};
@@ -1604,4 +1635,174 @@ document.getElementById("importFile").addEventListener("change", e=>{
 });
 
 render();
+
+/* ============================================================================
+   CROSS-DEVICE SYNC — private GitHub Gist
+   The gist holds the same JSON the Export button produces, in one file.
+   Conflict policy is last-write-wins by state.ts (single-user tool).
+   localStorage stays the source of truth; sync failures never lose local data.
+   ============================================================================ */
+const SYNC_KEY = LS_KEY + ":sync";
+const GIST_FILE = "ai-roadmap-progress.json";
+let sync = (()=>{ try{ const r = localStorage.getItem(SYNC_KEY); return r ? JSON.parse(r) : null; }catch(e){ return null; } })();
+let pushTimer = null;
+
+function saveSyncCfg(v){
+  try{ v ? localStorage.setItem(SYNC_KEY, JSON.stringify(v)) : localStorage.removeItem(SYNC_KEY); }catch(e){}
+}
+
+async function gistApi(method, path, body){
+  const res = await fetch("https://api.github.com"+path, {
+    method,
+    headers:{
+      "Authorization":"Bearer "+sync.token,
+      "Accept":"application/vnd.github+json",
+      ...(body ? {"Content-Type":"application/json"} : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(res.status === 401 || res.status === 403){ const e = new Error("auth"); e.auth = true; throw e; }
+  if(!res.ok) throw new Error("http "+res.status);
+  return res.json();
+}
+
+const syncDot = document.getElementById("syncDot");
+const syncMsg = document.getElementById("syncMsg");
+function setSyncStatus(kind, msg){
+  const dots = {off:"", working:"warn", synced:"good", offline:"warn", denied:"bad"};
+  syncDot.className = "dot " + (dots[kind]||"");
+  if(kind === "synced" && !msg){
+    const t = new Date();
+    msg = "Synced " + String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0");
+  }
+  syncMsg.textContent = msg || {off:"Sync not set up", working:"Syncing…",
+    offline:"Offline — saved locally", denied:"Token rejected — reconnect"}[kind] || "";
+  updateSyncButtons();
+}
+function netFailMsg(){
+  // The claude.ai artifact viewer's CSP blocks external fetch; the runtime it
+  // injects (window.claude) is how we tell that apart from a network drop.
+  return (typeof claude !== "undefined")
+    ? "This viewer blocks sync — use the GitHub Pages copy"
+    : "Couldn't reach GitHub — changes saved locally";
+}
+
+function schedulePush(delay){
+  if(!sync || !sync.gistId) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushSync, delay === undefined ? 2500 : delay);
+}
+async function pushSync(){
+  if(!sync || !sync.gistId) return;
+  setSyncStatus("working");
+  try{
+    await gistApi("PATCH","/gists/"+sync.gistId,
+      {files:{[GIST_FILE]:{content: JSON.stringify(state,null,2)}}});
+    setSyncStatus("synced");
+  }catch(err){
+    setSyncStatus(err.auth ? "denied" : "offline", err.auth ? undefined : netFailMsg());
+  }
+}
+async function pullSync(){
+  const g = await gistApi("GET","/gists/"+sync.gistId);
+  const f = g.files && g.files[GIST_FILE];
+  if(!f) throw new Error("progress file missing from gist");
+  let content = f.content;
+  if(f.truncated) content = await (await fetch(f.raw_url)).text();
+  const remote = JSON.parse(content);
+  if(remote && remote.m){
+    if((remote.ts||0) > (state.ts||0)){
+      state = remote;
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+      render();
+    }else if((state.ts||0) > (remote.ts||0)){
+      schedulePush(0);
+    }
+  }
+  setSyncStatus("synced");
+}
+async function connectSync(token){
+  sync = {token};
+  setSyncStatus("working","Connecting…");
+  try{
+    let gistId = null;
+    for(let page = 1; page <= 3 && !gistId; page++){
+      const list = await gistApi("GET", "/gists?per_page=100&page="+page);
+      const hit = list.find(g => g.files && g.files[GIST_FILE]);
+      if(hit) gistId = hit.id;
+      if(list.length < 100) break;
+    }
+    if(gistId){
+      sync.gistId = gistId; saveSyncCfg(sync);
+      await pullSync();
+      toast("Connected — linked to your existing progress gist");
+    }else{
+      const g = await gistApi("POST","/gists",{
+        description:"Edward's AI Roadmap — progress (auto-synced)",
+        public:false,
+        files:{[GIST_FILE]:{content: JSON.stringify(state,null,2)}}
+      });
+      sync.gistId = g.id; saveSyncCfg(sync);
+      setSyncStatus("synced");
+      toast("Connected — new private gist created");
+    }
+    return true;
+  }catch(err){
+    sync = null; saveSyncCfg(null);
+    setSyncStatus("off");
+    toast(err.auth ? "GitHub rejected the token — check it has the gist scope" : netFailMsg());
+    return false;
+  }
+}
+async function syncNow(){
+  if(!sync || !sync.gistId) return;
+  setSyncStatus("working");
+  try{
+    await pullSync();
+    toast("Synced");
+  }catch(err){
+    setSyncStatus(err.auth ? "denied" : "offline", err.auth ? undefined : netFailMsg());
+    toast(err.auth ? "Token rejected — reconnect sync" : netFailMsg());
+  }
+}
+
+/* ---- sync UI wiring */
+const syncPanel = document.getElementById("syncPanel");
+const syncButtons = document.getElementById("syncButtons");
+function updateSyncButtons(){
+  syncButtons.innerHTML = (sync && sync.gistId)
+    ? '<button class="btn" id="syncNowBtn">Sync now</button><button class="btn" id="syncOffBtn">Disconnect</button>'
+    : '<button class="btn" id="syncSetupBtn">Set up sync</button>';
+  const now = document.getElementById("syncNowBtn");
+  const off = document.getElementById("syncOffBtn");
+  const setup = document.getElementById("syncSetupBtn");
+  if(now) now.addEventListener("click", syncNow);
+  if(off) off.addEventListener("click", ()=>{
+    if(confirm("Disconnect sync on this device? Local progress stays; the gist keeps the last pushed copy.")){
+      sync = null; saveSyncCfg(null); setSyncStatus("off"); toast("Sync disconnected");
+    }
+  });
+  if(setup) setup.addEventListener("click", ()=>{ syncPanel.hidden = false; document.getElementById("syncToken").focus(); });
+}
+syncPanel.addEventListener("submit", async e=>{
+  e.preventDefault();
+  const inp = document.getElementById("syncToken");
+  const token = inp.value.trim();
+  if(!token){ toast("Paste a token first"); return; }
+  const ok = await connectSync(token);
+  if(ok){ inp.value = ""; syncPanel.hidden = true; }
+});
+document.getElementById("syncCancel").addEventListener("click", ()=>{
+  document.getElementById("syncToken").value = "";
+  syncPanel.hidden = true;
+});
+
+if(sync && sync.gistId){
+  setSyncStatus("working");
+  pullSync().catch(err=>{
+    setSyncStatus(err.auth ? "denied" : "offline", err.auth ? undefined : netFailMsg());
+  });
+}else{
+  setSyncStatus("off");
+}
 </script>
