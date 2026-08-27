@@ -51,6 +51,34 @@ measure the wrong thing for applied work.
 
 Nothing is ever locked. The order is a recommendation; modules 02 (Evaluation)
 and 04 (Tool Calling) are the two that make everything after them cheaper.
+The dashboard's module map shows the real dependency graph — after 04 the
+path branches, and concepts link sideways via "connects to" chips.
+
+## How reviews work (spaced repetition)
+
+Reviews are the app's main event. Any concept you've started (level ≥
+Learning) enters the review pool; the **Review** page serves whatever is due,
+core concepts first, capped at 15 cards a session.
+
+Each concept card is a Feynman rep: type the explanation from memory, flip to
+compare against the essence, then grade yourself —
+
+| Grade | Effect |
+|---|---|
+| Solid | Interval grows (1 → 3 → 7 days, then ×2.3, capped at 60). Two Solids in a row promote a Learning concept to "Can explain". |
+| Shaky | Interval shrinks to ~60%; streak resets. |
+| Forgot | Back tomorrow — and the concept's level honestly drops one notch. |
+
+Passed checkpoints re-enter the queue a week later; "Need to redo" downgrades
+the verdict to partial (your module % drops) until you re-pass it via the
+grading flow. Progress is therefore earned by retrieval, not by clicking.
+
+Checkpoints themselves come in three depths: **LV1 Recall** (retrieve it),
+**LV2 Reasoning** (why it works), **LV3 Transfer** (apply it to a new
+scenario) — and the copied grading prompt tells the LLM to grade at that
+depth. Concepts marked **core** carry triple weight in module progress; the
+per-concept tutor prompt quizzes along the same recall → reasoning → transfer
+ladder.
 
 ## Your data
 
