@@ -110,6 +110,24 @@ seconds after every change; **Sync now** forces a round-trip.
 - The claude.ai artifact viewer blocks external requests, so sync only works
   on the GitHub Pages copy or a local file.
 
+## Keeping the curriculum current
+
+AI moves monthly; the content here was authored August 2026. Each module
+tracks a **verified** date (the authoring date, or your last audit) with
+three tiers: fresh (< 4 months), check soon (4–8 months), audit overdue
+(> 8 months). Stale modules are listed on the dashboard's "Keeping current"
+card.
+
+To audit a module: open its **Freshness** card → **Copy audit prompt** →
+paste into Claude with web search enabled. The prompt carries the module's
+claims, resources and skip-list and demands tagged one-line findings
+(`[RESOURCE]`, `[CLAIM]`, `[NEW]`, `[SKIP]`, `[OK]`). Paste the result back
+into the card and **Mark audited** — the findings stay visible (dated) while
+you study, and the module counts as verified from that day.
+
+Saved findings are an overlay, not a content change: when an audit flags
+something real, make the permanent fix in the `ROADMAP` array (below).
+
 ## Editing the curriculum
 
 The content is a single `ROADMAP` array near the top of the `<script>` block.
