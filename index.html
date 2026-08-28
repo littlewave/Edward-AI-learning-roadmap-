@@ -289,6 +289,16 @@ li.flash{animation:flashbg 1.2s ease}
   font-family:var(--mono);font-size:9.5px;padding:1px 6px;margin-left:7px;vertical-align:1px;
 }
 
+/* ---- freshness */
+.tier-soon{color:var(--warn)}
+.tier-stale{color:var(--signal)}
+.fresh-notes{
+  background:var(--warn-soft);border-radius:var(--r);padding:11px 14px;margin-top:12px;
+  font-size:13px;color:var(--ink-2);line-height:1.6;white-space:pre-wrap;
+  font-family:var(--mono);
+}
+.fresh-notes .cd-label{color:var(--warn);font-family:var(--mono)}
+
 /* ---- module map */
 .dag{width:100%;min-width:640px;display:block}
 .dag-edges path{fill:none;stroke:var(--node-empty);stroke-width:1.5}
@@ -1219,7 +1229,51 @@ function ms(id){
   const s = state.m[id];
   s.c = s.c || {}; s.checks = s.checks || {}; s.answers = s.answers || {};
   s.rev = s.rev || {}; s.expl = s.expl || {}; s.chkRev = s.chkRev || {};
+  s.audit = s.audit || null; s.auditDraft = s.auditDraft || "";
   return s;
+}
+
+/* ---- curriculum freshness --------------------------------------------- */
+const CONTENT_DATE = Date.parse("2026-08-28"); // when this curriculum was authored
+function freshness(mod){
+  const a = ms(mod.id).audit;
+  const ts = Math.max(CONTENT_DATE, (a && a.ts) || 0);
+  const days = (Date.now() - ts) / DAY;
+  return {ts, tier: days < 120 ? "fresh" : days < 240 ? "soon" : "stale"};
+}
+const FRESH_LABEL = {fresh:"fresh", soon:"check soon", stale:"audit overdue"};
+function fmtMonth(ts){
+  return new Date(ts).toLocaleDateString(undefined, {month:"short", year:"numeric"});
+}
+function auditPrompt(mod){
+  return `You are auditing one module of my personal AI-engineering curriculum for staleness. Today's date matters: use web search to verify against the CURRENT state of the field, not your training data alone.
+
+MODULE: ${mod.id} · ${mod.title}
+LAST VERIFIED: ${fmtMonth(freshness(mod).ts)}
+
+CONCEPTS TAUGHT (title — the claim being made)
+${mod.concepts.map(c=>`- ${c.t} — ${c.e}`).join("\n")}
+
+RESOURCES POINTED TO
+${mod.resources.map(r=>`- ${r.n}${r.u?` — ${r.u}`:""}`).join("\n")}
+
+DELIBERATELY SKIPPED
+${mod.skip.map(x=>`- ${x}`).join("\n")}
+
+Audit all of it:
+1. Resources: dead, moved, renamed, or superseded by something clearly better?
+2. Claims: is any essence now wrong, renamed, or outdated in emphasis?
+3. Gaps: any development since the verified date that now belongs in this module's core 20%?
+4. Skip list: anything that should move into the module, or out of it?
+
+Output ONLY tagged bullets, most important first, one line each, no preamble:
+[RESOURCE] name — what changed and the replacement link
+[CLAIM] concept — what's now wrong and the one-line correction
+[NEW] thing — why it now belongs here and one source
+[SKIP] item — move in or out, and why
+[OK] — final line if the rest of the module held up
+
+Be conservative: only flag genuine changes, not fashion. If nothing changed, a single [OK] line is the correct full answer.`;
 }
 
 /* ---- spaced repetition ------------------------------------------------ */
@@ -1525,6 +1579,19 @@ function viewDashboard(){
       </div>
     </section>
 
+    ${(()=>{
+      const dueAudit = ROADMAP.map(m=>({m, f:freshness(m)})).filter(x=>x.f.tier!=="fresh");
+      const newest = Math.max(...ROADMAP.map(m=>freshness(m).ts));
+      return `<section class="card">
+      <div class="card-h"><h3>Keeping current</h3><span class="eyebrow">The field moves — the roadmap must too</span></div>
+      <div class="card-pad" style="font-size:13.5px;color:var(--ink-2);line-height:1.6">
+        ${dueAudit.length ? `<p style="margin-bottom:8px">These modules haven't been verified recently — open one and run its audit prompt:</p>
+        <ul style="margin:0;padding-left:18px">${dueAudit.map(({m,f})=>`<li style="margin:3px 0"><a href="#/m/${m.id}">${m.id} · ${esc(m.title)}</a> — verified ${fmtMonth(f.ts)} · <span class="tier-${f.tier}">${FRESH_LABEL[f.tier]}</span></li>`).join("")}</ul>`
+        : `<p>Curriculum verified ${fmtMonth(newest)} — nothing needs an audit. Each module carries a “Copy audit prompt” that has Claude re-check its claims and sources against the current field when the time comes.</p>`}
+        <p style="margin-top:10px;color:var(--ink-3);font-size:12.5px">Between audits, two filters beat every feed: Simon Willison's blog and Anthropic's engineering posts. If it matters, it shows up there.</p>
+      </div>
+    </section>`;})()}
+
     <section class="card">
       <div class="card-h"><h3>Proof of expertise</h3><span class="eyebrow">What you show people</span></div>
       <div class="card-pad">
@@ -1568,6 +1635,7 @@ function viewModule(id){
           <span class="mod-stat"><span class="k">Concepts</span><span class="v">${mod.concepts.filter((_,i)=>(s.c[i]||0)>=2).length}/${mod.concepts.length}</span></span>
           <span class="mod-stat"><span class="k">Build</span><span class="v">${s.build?"Shipped":"Open"}</span></span>
           <span class="mod-stat"><span class="k">Checkpoints</span><span class="v">${mod.checks.filter((_,i)=>(s.checks[i]||"")==="pass").length}/${mod.checks.length}</span></span>
+          ${(()=>{ const f = freshness(mod); return `<span class="mod-stat"><span class="k">Verified</span><span class="v${f.tier!=="fresh"?` tier-${f.tier}`:""}">${fmtMonth(f.ts)}</span></span>`; })()}
         </div>
         <div style="margin-top:16px">${meter(p)}</div>
       </div>
@@ -1638,6 +1706,22 @@ function viewModule(id){
           </span>
         </li>`).join("")}
       </ul>
+    </section>
+
+    <section class="card">
+      ${(()=>{ const f = freshness(mod); return `
+      <div class="card-h"><h3>Freshness</h3><span class="chip ${f.tier==="fresh"?"on":f.tier==="soon"?"part":""}"${f.tier==="stale"?' style="background:var(--signal-soft);border-color:transparent;color:var(--signal)"':""}>${FRESH_LABEL[f.tier]}</span></div>
+      <div class="card-pad">
+        <p style="font-size:13.5px;color:var(--ink-2);max-width:64ch">Content verified <strong>${fmtMonth(f.ts)}</strong>. AI moves monthly — when this reads “check soon”, copy the audit prompt into Claude (tell it to use web search), and paste what comes back here. Findings stay visible while you study; permanent fixes go into the ROADMAP data (see the README).</p>
+        ${s.audit ? `<div class="fresh-notes"><span class="cd-label">Field updates — ${fmtDate(s.audit.ts)}</span>${esc(s.audit.notes)}</div>` : ""}
+        <div class="q-actions" style="margin-top:12px">
+          <button class="btn primary" data-act="auditCopy" data-m="${id}">Copy audit prompt</button>
+        </div>
+        <textarea data-act="auditNotes" data-m="${id}" placeholder="Paste the tagged audit findings here…" style="margin-top:12px;min-height:76px">${esc(s.auditDraft)}</textarea>
+        <div class="q-actions" style="margin-top:8px">
+          <button class="btn" data-act="auditMark" data-m="${id}" ${s.auditDraft.trim()?"":"disabled"}>Mark audited</button>
+        </div>
+      </div>`; })()}
     </section>
 
     <section class="card">
@@ -1924,6 +2008,18 @@ document.addEventListener("click", e=>{
     session.idx++; session.flipped = false; render();
   }
   if(act === "revExit"){ session = null; location.hash = "#/"; }
+  if(act === "auditCopy"){
+    const mod = ROADMAP.find(m=>m.id===id);
+    copy(auditPrompt(mod), "Audit prompt copied — paste into Claude with web search on");
+  }
+  if(act === "auditMark"){
+    const s = ms(id);
+    if(s.auditDraft.trim()){
+      s.audit = {ts: Date.now(), notes: s.auditDraft.trim()};
+      s.auditDraft = "";
+      save(); render(); toast("Module marked audited");
+    }
+  }
   if(act === "grade"){
     const mod = ROADMAP.find(m=>m.id===id);
     copy(gradingPrompt(mod, i), "Grading prompt copied — paste it into Claude");
@@ -1953,9 +2049,15 @@ document.addEventListener("change", e=>{
 
 /* Autosave answers without re-rendering (which would eat the caret). */
 document.addEventListener("input", e=>{
-  const el = e.target.closest("textarea[data-act='answer']");
-  if(!el) return;
-  ms(el.dataset.m).answers[+el.dataset.i] = el.value;
+  const ans = e.target.closest("textarea[data-act='answer']");
+  const aud = e.target.closest("textarea[data-act='auditNotes']");
+  if(!ans && !aud) return;
+  if(ans) ms(ans.dataset.m).answers[+ans.dataset.i] = ans.value;
+  if(aud){
+    ms(aud.dataset.m).auditDraft = aud.value;
+    const btn = document.querySelector("[data-act='auditMark']");
+    if(btn) btn.toggleAttribute("disabled", !aud.value.trim());
+  }
   clearTimeout(document._save);
   document._save = setTimeout(save, 400);
 });
