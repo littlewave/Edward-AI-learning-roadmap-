@@ -794,7 +794,8 @@ const ROADMAP = [
     {t:"essay", n:"Anthropic — Building Effective Agents", u:"https://www.anthropic.com/engineering/building-effective-agents", note:"The clearest statement of when to use a workflow vs an agent. Non-negotiable reading.", star:true},
     {t:"docs", n:"Tool use / function calling guide", u:"https://platform.openai.com/docs/guides/function-calling"},
     {t:"docs", n:"Claude tool use documentation", u:"https://docs.claude.com/"},
-    {t:"essay", n:"Anthropic — Writing effective tools for agents", u:"https://www.anthropic.com/engineering"}
+    {t:"essay", n:"Anthropic — Writing effective tools for agents", u:"https://www.anthropic.com/engineering"},
+    {t:"code", n:"DeepSeek Harness (dsh) — open-source agent harness", u:"https://deepseek.com/harness/en/", note:"Read its architecture after writing your own loop: the loop, models and tools are all swappable plugins — this module's concepts, productised. (Radar find, Aug 2026.)"}
   ],
   checks:[
     {lv:1, q:"Walk through one turn of tool use. Be explicit about who does what — the model, your code, the API.",
@@ -1276,6 +1277,40 @@ Output ONLY tagged bullets, most important first, one line each, no preamble:
 Be conservative: only flag genuine changes, not fashion. If nothing changed, a single [OK] line is the correct full answer.`;
 }
 
+/* ---- field radar ------------------------------------------------------ */
+/* Module audits catch rot in what's taught. The radar catches what isn't
+   taught yet — new platforms, paradigms, entrants that are nobody's module. */
+const RADAR_SEED = {ts: Date.parse("2026-08-29"), seed:true, notes:
+`[SHIFT] DeepSeek Harness (dsh) — open-source agent harness (MIT, Aug 2026): the agent loop, model adapters, tools, skills and sandboxes are ALL swappable plugins; MCP servers are its tool layer; other agents can nest inside it → modules 04, 06
+[NOUN] "everything is a plugin" — the composability of the agent loop (04) plus MCP-style interop (06), applied to the harness itself; the one new idea is that the harness's own parts are replaceable
+[TOOL] dsh as a study object — read its architecture after writing your own loop in module 04; every part of it should be recognisable`};
+
+function lastScanTs(){
+  const r = state.radar||[];
+  return Math.max(RADAR_SEED.ts, r.length ? r[0].ts : 0);
+}
+function fieldScanPrompt(){
+  return `You are my field radar for applied AI. Use web search — this is about what happened in the CURRENT period, not your training data.
+
+WINDOW: developments since ${fmtDateY(lastScanTs())}.
+
+MY ROADMAP'S TERRITORY (map every finding onto this)
+${ROADMAP.map(m=>`${m.id} · ${m.title}`).join("\n")}
+
+I am an applied practitioner in a Microsoft-ecosystem workplace, learning to ship LLM systems into real processes. Scan for developments that pass ALL of these filters:
+- It changes what a working practitioner would build or choose at work — not research-only, not a demo.
+- It has survived at least 4 weeks of attention, or shipped from a major lab/vendor with real adoption.
+- If it is a new NAME for something I already know, you must say which existing concept it re-labels.
+
+Output at most 8 ranked one-liners, most important first, no preamble:
+[SHIFT] thing — why it changes practice → module NN or NEW
+[TOOL] thing — what it's for and who ships it → module NN
+[NOUN] new term — which existing concept it re-labels (module NN)
+[IGNORE] hyped thing — one line on why I can skip it
+
+If the window was genuinely quiet, say so in one line. Do not pad.`;
+}
+
 /* ---- spaced repetition ------------------------------------------------ */
 const DAY = 864e5;
 const LV_META = {
@@ -1582,13 +1617,43 @@ function viewDashboard(){
     ${(()=>{
       const dueAudit = ROADMAP.map(m=>({m, f:freshness(m)})).filter(x=>x.f.tier!=="fresh");
       const newest = Math.max(...ROADMAP.map(m=>freshness(m).ts));
+      const scans = [...(state.radar||[]), RADAR_SEED];
+      const scanAge = (Date.now() - lastScanTs()) / DAY;
+      const scanDue = scanAge > 35;
       return `<section class="card">
-      <div class="card-h"><h3>Keeping current</h3><span class="eyebrow">The field moves — the roadmap must too</span></div>
+      <div class="card-h"><h3>Keeping current</h3>${scanDue ? '<span class="chip part">field scan due</span>' : `<span class="eyebrow">The field moves — the roadmap must too</span>`}</div>
       <div class="card-pad" style="font-size:13.5px;color:var(--ink-2);line-height:1.6">
-        ${dueAudit.length ? `<p style="margin-bottom:8px">These modules haven't been verified recently — open one and run its audit prompt:</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--ink)">Field radar.</strong> Module audits catch rot in what's taught; the monthly scan catches what isn't taught yet — new platforms, paradigms and entrants that are nobody's module. Last scan: <strong>${fmtDateY(lastScanTs())}</strong>${scanDue ? ' — <span class="tier-soon">run one now</span>' : ""}. Copy the prompt into Claude with web search on, paste back what it finds.</p>
+        <div class="q-actions" style="margin:10px 0 12px">
+          <button class="btn primary" data-act="radarCopy">Copy field-scan prompt</button>
+        </div>
+        <textarea data-act="radarNotes" placeholder="Paste the tagged scan results here…" style="min-height:64px;font-size:13px">${esc(state.radarDraft||"")}</textarea>
+        <div class="q-actions" style="margin:8px 0 4px">
+          <button class="btn" data-act="radarSave" ${(state.radarDraft||"").trim()?"":"disabled"}>Save scan</button>
+        </div>
+        ${scans.slice(0,3).map(sc=>`<div class="fresh-notes" style="margin-top:10px"><span class="cd-label">Scan — ${fmtDateY(sc.ts)}${sc.seed?" · seeded":""}</span>${esc(sc.notes)}</div>`).join("")}
+        ${scans.length > 3 ? `<p style="margin-top:6px;color:var(--ink-3);font-size:12px">${scans.length-3} older scan${scans.length>4?"s":""} in your export.</p>` : ""}
+        <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--rule)">
+        ${dueAudit.length ? `<p style="margin-bottom:8px"><strong style="color:var(--ink)">Module audits.</strong> These haven't been verified recently — open one and run its audit prompt:</p>
         <ul style="margin:0;padding-left:18px">${dueAudit.map(({m,f})=>`<li style="margin:3px 0"><a href="#/m/${m.id}">${m.id} · ${esc(m.title)}</a> — verified ${fmtMonth(f.ts)} · <span class="tier-${f.tier}">${FRESH_LABEL[f.tier]}</span></li>`).join("")}</ul>`
-        : `<p>Curriculum verified ${fmtMonth(newest)} — nothing needs an audit. Each module carries a “Copy audit prompt” that has Claude re-check its claims and sources against the current field when the time comes.</p>`}
-        <p style="margin-top:10px;color:var(--ink-3);font-size:12.5px">Between audits, two filters beat every feed: Simon Willison's blog and Anthropic's engineering posts. If it matters, it shows up there.</p>
+        : `<p><strong style="color:var(--ink)">Module audits.</strong> Curriculum verified ${fmtMonth(newest)} — nothing needs an audit. Each module carries a “Copy audit prompt” for when the time comes.</p>`}
+        <p style="margin-top:10px;color:var(--ink-3);font-size:12.5px">Between scans, two filters beat every feed: Simon Willison's blog and Anthropic's engineering posts. If it matters, it shows up there.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h3>Deliberately outside the roadmap</h3><span class="eyebrow">Conscious 80/20 cuts, not blind spots</span></div>
+      <div class="card-pad" style="font-size:13.5px;color:var(--ink-2);line-height:1.65">
+        <ul style="margin:0;padding-left:18px">
+          <li style="margin:4px 0"><strong style="color:var(--ink)">Fine-tuning</strong> — only worth it after Module 02 evals prove prompting has plateaued; most teams never get there.</li>
+          <li style="margin:4px 0"><strong style="color:var(--ink)">Multimodal — vision &amp; voice agents</strong> — add the month a real work process of yours needs document-vision or a voice channel.</li>
+          <li style="margin:4px 0"><strong style="color:var(--ink)">Open-weight &amp; local models</strong> — be a fluent consumer of hosted APIs first; running your own is a different job.</li>
+          <li style="margin:4px 0"><strong style="color:var(--ink)">Computer-use / browser agents</strong> — promising but young; let the radar promote it when it stabilises.</li>
+          <li style="margin:4px 0"><strong style="color:var(--ink)">Image / video generation</strong> — a different goal from shipping process automation.</li>
+          <li style="margin:4px 0"><strong style="color:var(--ink)">AI regulation in depth</strong> — Module 09's Purview vocabulary is the working entry point; go deeper only when a project demands it.</li>
+        </ul>
+        <p style="margin-top:10px;color:var(--ink-3);font-size:12.5px">A field scan tagging one of these [SHIFT] is the signal to promote it into the roadmap.</p>
       </div>
     </section>`;})()}
 
@@ -1713,7 +1778,7 @@ function viewModule(id){
       <div class="card-h"><h3>Freshness</h3><span class="chip ${f.tier==="fresh"?"on":f.tier==="soon"?"part":""}"${f.tier==="stale"?' style="background:var(--signal-soft);border-color:transparent;color:var(--signal)"':""}>${FRESH_LABEL[f.tier]}</span></div>
       <div class="card-pad">
         <p style="font-size:13.5px;color:var(--ink-2);max-width:64ch">Content verified <strong>${fmtMonth(f.ts)}</strong>. AI moves monthly — when this reads “check soon”, copy the audit prompt into Claude (tell it to use web search), and paste what comes back here. Findings stay visible while you study; permanent fixes go into the ROADMAP data (see the README).</p>
-        ${s.audit ? `<div class="fresh-notes"><span class="cd-label">Field updates — ${fmtDate(s.audit.ts)}</span>${esc(s.audit.notes)}</div>` : ""}
+        ${s.audit ? `<div class="fresh-notes"><span class="cd-label">Field updates — ${fmtDateY(s.audit.ts)}</span>${esc(s.audit.notes)}</div>` : ""}
         <div class="q-actions" style="margin-top:12px">
           <button class="btn primary" data-act="auditCopy" data-m="${id}">Copy audit prompt</button>
         </div>
@@ -1759,6 +1824,10 @@ function viewModule(id){
 /* ---- review mode ------------------------------------------------------ */
 function fmtDate(ts){
   return new Date(ts).toLocaleDateString(undefined, {weekday:"short", day:"numeric", month:"short"});
+}
+/* Dated records (audits, scans, explanations) outlive a year — keep the year. */
+function fmtDateY(ts){
+  return new Date(ts).toLocaleDateString(undefined, {day:"numeric", month:"short", year:"numeric"});
 }
 function viewReview(){
   if(!session){
@@ -2020,6 +2089,17 @@ document.addEventListener("click", e=>{
       save(); render(); toast("Module marked audited");
     }
   }
+  if(act === "radarCopy"){
+    copy(fieldScanPrompt(), "Field-scan prompt copied — paste into Claude with web search on");
+  }
+  if(act === "radarSave"){
+    const draft = (state.radarDraft||"").trim();
+    if(draft){
+      (state.radar = state.radar||[]).unshift({ts: Date.now(), notes: draft});
+      state.radarDraft = "";
+      save(); render(); toast("Field scan saved");
+    }
+  }
   if(act === "grade"){
     const mod = ROADMAP.find(m=>m.id===id);
     copy(gradingPrompt(mod, i), "Grading prompt copied — paste it into Claude");
@@ -2051,12 +2131,18 @@ document.addEventListener("change", e=>{
 document.addEventListener("input", e=>{
   const ans = e.target.closest("textarea[data-act='answer']");
   const aud = e.target.closest("textarea[data-act='auditNotes']");
-  if(!ans && !aud) return;
+  const rad = e.target.closest("textarea[data-act='radarNotes']");
+  if(!ans && !aud && !rad) return;
   if(ans) ms(ans.dataset.m).answers[+ans.dataset.i] = ans.value;
   if(aud){
     ms(aud.dataset.m).auditDraft = aud.value;
     const btn = document.querySelector("[data-act='auditMark']");
     if(btn) btn.toggleAttribute("disabled", !aud.value.trim());
+  }
+  if(rad){
+    state.radarDraft = rad.value;
+    const btn = document.querySelector("[data-act='radarSave']");
+    if(btn) btn.toggleAttribute("disabled", !rad.value.trim());
   }
   clearTimeout(document._save);
   document._save = setTimeout(save, 400);

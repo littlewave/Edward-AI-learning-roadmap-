@@ -128,6 +128,17 @@ you study, and the module counts as verified from that day.
 Saved findings are an overlay, not a content change: when an audit flags
 something real, make the permanent fix in the `ROADMAP` array (below).
 
+Module audits catch rot in what's taught. The **field radar** (dashboard →
+Keeping current) catches what isn't taught yet: a monthly **field-scan
+prompt** has Claude-with-web-search find significant developments since the
+last scan and map each one onto the roadmap with an anti-hype filter —
+`[SHIFT]` genuinely changes practice (→ module or NEW), `[TOOL]` worth
+knowing, `[NOUN]` a new name for a concept you already know, `[IGNORE]`
+hype with a reason. Saved scans are dated and sync like everything else.
+A scan is considered due after ~35 days. The "Deliberately outside the
+roadmap" card lists the conscious 80/20 cuts a `[SHIFT]` finding can
+promote into the curriculum.
+
 ## Editing the curriculum
 
 The content is a single `ROADMAP` array near the top of the `<script>` block.
