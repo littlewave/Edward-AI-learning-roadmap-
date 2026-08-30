@@ -1671,7 +1671,7 @@ function viewDashboard(){
       <div class="card-h"><h3>How to use this</h3></div>
       <div class="card-pad" style="font-size:14px;color:var(--ink-2);line-height:1.65;max-width:66ch">
         <p style="margin-bottom:10px"><strong style="color:var(--ink)">Reviews are the main event.</strong> Every concept you start gets scheduled for spaced review — you retype its essence from memory (the Feynman test), flip, and grade yourself Forgot / Shaky / Solid. Solid pushes the next review further out; Forgot brings it back tomorrow and honestly drops the concept's level. Passed checkpoints re-enter the queue too. Do the due cards before learning anything new.</p>
-        <p style="margin-bottom:10px"><strong style="color:var(--ink)">Click a concept to open it.</strong> Every concept carries its essence in two sentences, a concrete bar for “got it”, the source that teaches it, and a tutor prompt — paste that into Claude and it teaches the concept as one turn of the intuition–logic double helix (naive picture → mechanism → the collision between them → rebuilt intuition → a test), then quizzes you up the recall → reasoning → transfer ladder.</p>
+        <p style="margin-bottom:10px"><strong style="color:var(--ink)">Click a concept to open it.</strong> Every concept carries its essence in two sentences, a concrete bar for “got it”, the source that teaches it, and a tutor prompt — paste that into Claude and it walks you from the core idea through a deep dive along the intuition–logic double helix (naive picture → mechanism → the collision between them → rebuilt intuition → a test), then a worked example and the classic mistake, before quizzing you up the recall → reasoning → transfer ladder.</p>
         <p style="margin-bottom:10px"><strong style="color:var(--ink)">Rate concepts honestly.</strong> “Can explain” means you could explain it to a sceptical colleague with no notes and survive one follow-up question. Anything less is “Learning”. The “you've got it when” line inside each concept is the bar.</p>
         <p style="margin-bottom:10px"><strong style="color:var(--ink)">The build is the module.</strong> It's weighted at ${Math.round(W_BUILD*100)}% for a reason. Reading about tool calling and writing an agent loop are different skills.</p>
         <p style="margin-bottom:10px"><strong style="color:var(--ink)">Grade the checkpoints with an LLM.</strong> Write your answer, hit “Copy grading prompt”, paste it into Claude or Copilot, and record the verdict it gives you. It ships the rubric with your answer and is instructed to be strict.</p>
@@ -1708,7 +1708,7 @@ function viewModule(id){
 
     <section class="card">
       <div class="card-h"><h3>The 20% that carries the 80%</h3><span class="eyebrow">Rate yourself honestly</span></div>
-      <p class="section-note" style="padding-bottom:12px">Click any concept to open it: the essence in two sentences, the bar for “got it”, where to learn it, and a tutor prompt you can paste into Claude. The tutor works the intuition–logic double helix — your naive picture, the exact mechanism, the point where they collide, then a rebuilt intuition — before quizzing you on it.</p>
+      <p class="section-note" style="padding-bottom:12px">Click any concept to open it: the essence in two sentences, the bar for “got it”, where to learn it, and a tutor prompt you can paste into Claude. The tutor gives you the core idea, then a deep dive along the intuition–logic double helix — your naive picture, the exact mechanism, the point where they collide, a rebuilt intuition — then a worked example, the classic mistake, and a quiz.</p>
       <ul class="concepts">
         ${mod.concepts.map((c,i)=>{
           const open = openConcepts.has(id+":"+i);
@@ -1998,19 +1998,22 @@ MODULE: ${mod.title} (from an applied-AI roadmap covering prompting, evals, tool
 THE CORE IDEA I'M MEANT TO GRASP: ${c.e}
 THE BAR I NEED TO MEET: ${c.g}
 
-Teach it in this order:
-1. DEEP DIVE — teach this as one turn of the intuition–logic double helix (David Bessis, "Mathematica"). Intuition and logic are not opposites: logic exists to UPGRADE my intuition, not to replace or suppress it. I should finish able to SEE why the mechanism must be true, not merely recite it. Five labelled parts, 450 words MAXIMUM for the whole deep dive:
+Teach it in this order. Each step below has a deliberately different job — do not repeat content between them; if a step would restate an earlier one, make it add something new instead.
+1. CORE IDEA — explain the concept in your own words, better than the summary above. Plain language, no framework vocabulary, no fluff. 150 words max. This is my orientation before the deep dive.
+2. DEEP DIVE — teach this as one turn of the intuition–logic double helix (David Bessis, "Mathematica"). Intuition and logic are not opposites: logic exists to UPGRADE my intuition, not to replace or suppress it. I should finish able to SEE why the mechanism must be true, not merely recite it. Five labelled parts, 450 words MAXIMUM for the whole deep dive:
    a. THE NAIVE PICTURE — the mental image a smart person actually arrives with here. State it generously and in good faith, never as a strawman; this is my starting intuition and it is probably partly right.
    b. THE MECHANISM — the precise, literal account: definitions, and what actually happens step by step. No metaphor yet, no hand-waving. This is the stone.
    c. THE COLLISION — the exact point where the naive picture and the mechanism contradict each other. Give a concrete case where the naive picture predicts the wrong thing, and say what that error costs in practice. Do NOT smooth this over or rush past it — the contradiction is the moment of learning. If my naive picture turns out to be substantially right, say so plainly and sharpen its edge case instead of inventing a conflict.
    d. THE REBUILT INTUITION — a new mental image with the mechanism baked into it, so the logic now feels inevitable rather than memorised. Give me something I can see or feel; do not just restate (b) in other words.
    e. THE TEST — one concrete situation from ordinary office work (documents, email, spreadsheets, internal tools). What does the rebuilt intuition predict here, and what would the naive picture have predicted instead?
    Spend your words where they matter: (c) and (d) deserve the most, (a) can be two sentences. Stay under 450 words total.
-2. Quiz me: exactly three questions, one at a time, at increasing depth. Wait for my answer before asking the next. Push back on vague answers.
+3. WORKED EXAMPLE — one concrete example of this concept operating in ordinary office work (documents, email, spreadsheets, internal tools), traced end to end so I can see it at each step. Use a DIFFERENT situation from the one in 2e: that was a short prediction check, this is the full walk-through. Not a toy example. About 150 words.
+4. CLASSIC MISTAKE — the behavioural failure, not the conceptual one. 2c covered where my mental picture contradicts the mechanism; this is what practitioners actually DO wrong on real projects: the action they take, the symptom that reveals it, and what it costs them. About 120 words.
+5. Quiz me: exactly three questions, one at a time, at increasing depth. Wait for my answer before asking the next. Push back on vague answers.
    - Question 1 — RECALL: "What is X?" / "Define X." Tests whether I can retrieve the idea from memory.
    - Question 2 — REASONING: "Why does X work?" / "What problem does X solve that a naive alternative doesn't?" Tests whether I understand the mechanism.
    - Question 3 — TRANSFER: pose a novel, concrete office-work scenario and make me apply X to it. Tests whether I can use it in a context I haven't seen.
-3. Finish with a verdict: have I met the bar above, yes or no — and if no, the one thing to review. If my answers showed the naive picture from (a) still running underneath, name that specifically.${src?`
+6. Finish with a verdict: have I met the bar above, yes or no — and if no, the one thing to review. If my answers showed the naive picture from step 2a still running underneath, name that specifically.${src?`
 
 If I want to go deeper, point me at: ${src.n}${src.u?" — "+src.u:""}`:""}`;
 }
