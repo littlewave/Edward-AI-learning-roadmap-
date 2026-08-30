@@ -170,14 +170,20 @@ Each module:
 ```
 
 Each concept also generates a **tutor prompt** (copy button inside the
-expanded row). It has Claude teach that single concept as one turn of the
-**intuition–logic double helix** (David Bessis, *Mathematica*): your naive
-mental picture, then the exact mechanism, then the collision where the
-picture predicts the wrong thing, then a rebuilt intuition with the
-mechanism baked in, then a test in ordinary office work — 450 words max.
-Logic is used to upgrade intuition, not to suppress it, so you end able to
-see why the mechanism must be true. It then quizzes you three questions
-deep and grades you against the concept's "you've got it when" bar.
+expanded row). Claude teaches that single concept in six steps:
+
+1. **Core idea** in plain language (150 words).
+2. **Deep dive** as one turn of the **intuition–logic double helix** (David
+   Bessis, *Mathematica*): your naive mental picture, the exact mechanism,
+   the collision where the picture predicts the wrong thing, a rebuilt
+   intuition with the mechanism baked in, then a test — 450 words max.
+   Logic is used to upgrade intuition, not suppress it, so you end able to
+   see why the mechanism must be true.
+3. **Worked example** traced end to end in ordinary office work.
+4. **Classic mistake** — the behavioural failure, what it costs, and the
+   tell that you're making it.
+5. **Quiz**, three questions deep, one at a time.
+6. **Verdict** against the concept's "you've got it when" bar.
 
 Adding or removing a concept shifts that module's percentage, since concept
 score is an average. Changing an `id` orphans its saved progress.
