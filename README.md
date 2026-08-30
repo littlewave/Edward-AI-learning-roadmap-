@@ -78,7 +78,7 @@ Checkpoints themselves come in three depths: **LV1 Recall** (retrieve it),
 scenario) — and the copied grading prompt tells the LLM to grade at that
 depth. Concepts marked **core** carry triple weight in module progress; the
 per-concept tutor prompt quizzes along the same recall → reasoning → transfer
-ladder.
+ladder, after teaching the concept through the intuition–logic double helix.
 
 ## Your data
 
@@ -156,20 +156,28 @@ Each module:
     {t:"the concept",      // shown in the list
      e:"the essence",      // 2–3 sentences: the core idea
      g:"you've got it when…", // the concrete bar for 'can explain'
+     w:3,                  // importance: 3 core, 2 standard, 1 supporting
+     rel:[["07",0]],       // optional cross-links: [module id, concept index]
      r:0}                  // index into resources[] — where to learn it
   ],
   skip:[ "..." ],          // the 80% you're consciously not learning yet
   build:{goal:"...", steps:["..."], done:"what finished looks like"},
   resources:[ {t:"docs", n:"name", u:"https://…", note:"…", star:true} ],
-  checks:[ {q:"question", hint:"which concepts it draws on and the essence needed",
+  checks:[ {lv:1,          // depth: 1 recall, 2 reasoning, 3 transfer
+            q:"question", hint:"which concepts it draws on and the essence needed",
             rubric:["what a strong answer contains"]} ]
 }
 ```
 
 Each concept also generates a **tutor prompt** (copy button inside the
-expanded row): a prompt that has Claude teach that single concept with a
-work-grounded example, quiz you three questions deep, and grade you against
-the concept's "you've got it when" bar.
+expanded row). It has Claude teach that single concept as one turn of the
+**intuition–logic double helix** (David Bessis, *Mathematica*): your naive
+mental picture, then the exact mechanism, then the collision where the
+picture predicts the wrong thing, then a rebuilt intuition with the
+mechanism baked in, then a test in ordinary office work — 450 words max.
+Logic is used to upgrade intuition, not to suppress it, so you end able to
+see why the mechanism must be true. It then quizzes you three questions
+deep and grades you against the concept's "you've got it when" bar.
 
 Adding or removing a concept shifts that module's percentage, since concept
 score is an average. Changing an `id` orphans its saved progress.
