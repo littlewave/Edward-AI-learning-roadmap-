@@ -120,8 +120,13 @@ button{font:inherit;color:inherit;cursor:pointer}
   border-right:1px solid var(--rule);
   background:var(--panel);
   padding:18px 0 24px;
-  position:sticky;top:0;height:100vh;overflow-y:auto;
+  position:sticky;top:0;height:100vh;overflow:hidden;
+  display:flex;flex-direction:column;
 }
+/* Only the module list scrolls, so Export/Import and sync stay reachable
+   however many modules the roadmap grows to. */
+.rail > *{flex:none}
+.rail > .spine{flex:1 1 auto;min-height:0;overflow-y:auto}
 .main{padding:var(--pad) var(--pad) 90px;max-width:940px}
 
 /* ---- rail head */
@@ -451,7 +456,8 @@ textarea::placeholder{color:var(--ink-3)}
 /* ============================================================ RESPONSIVE */
 @media (max-width:900px){
   .app{grid-template-columns:minmax(0,1fr)}
-  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--rule);min-width:0;max-width:100%}
+  .rail{display:block;position:static;height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--rule);min-width:0;max-width:100%}
+  .rail > .spine{overflow-y:visible}
   .spine{display:flex;overflow-x:auto;padding:14px 16px;gap:2px}
   .spine li:not(:last-child) .spine-link::after{display:none}
   .spine-link{grid-template-columns:auto;gap:8px;min-width:170px;padding:10px 12px;border-radius:var(--r)}
@@ -759,7 +765,7 @@ const ROADMAP = [
      g:"You can state exactly who does what in one tool turn, without blurring the boundary once.", w:3, rel:[["06",4],["10",5]], r:2},
     {t:"The agent loop: call model → if tool use, execute and append → repeat → stop condition",
      e:"The agent loop is a while-loop: call the model; if it asks for a tool, run it, append the result, repeat; stop when it answers or a limit trips. That's the whole trick — everything 'agentic' is this loop wearing different clothes.",
-     g:"You have written this loop yourself and could rewrite it from memory in ~30 lines.", w:3, rel:[["07",0],["03",3]], r:0},
+     g:"You have written this loop yourself and could rewrite it from memory in ~30 lines.", w:3, rel:[["07",0],["03",3],["11",1]], r:0},
     {t:"Parallel tool calls, and why they change latency budgets",
      e:"Models can request several independent tool calls in one turn; executing them concurrently collapses latency. Parallelism is why agent design cares about which tools are independent of each other.",
      g:"You can spot which calls in a transcript could have run in parallel.", w:1, r:2},
@@ -889,7 +895,7 @@ const ROADMAP = [
      g:"You can draw the boxes and arrows for your own setup, including where the credentials sit.", w:2, r:0},
     {t:"The three primitives: tools (model-invoked), resources (data), prompts (user-invoked)",
      e:"Tools are invoked by the model, resources are data the application supplies, prompts are templates the user invokes. Who initiates is the whole distinction — and it decides both UX and risk.",
-     g:"Given a capability, you can say which primitive it should be and why.", w:3, rel:[["04",0]], r:0},
+     g:"Given a capability, you can say which primitive it should be and why.", w:3, rel:[["04",0],["11",6]], r:0},
     {t:"Transports: stdio for local, HTTP/SSE for remote — and when to choose which",
      e:"stdio runs the server as a local child process — simple, private, per-user. HTTP serves remote, shared, authenticated use. Local-first is the sane default until sharing forces the move.",
      g:"You can pick the transport for a given scenario and justify it in two sentences.", w:1, r:0},
@@ -999,7 +1005,7 @@ const ROADMAP = [
   concepts:[
     {t:"Orchestrator–worker: one planner, several bounded workers",
      e:"One orchestrator plans and delegates; bounded workers execute narrow tasks and report back. This is the multi-agent pattern that actually ships — hierarchy, not committee.",
-     g:"You can sketch the orchestrator's prompt and one worker's brief for a real question.", w:2, rel:[["09",5]], r:0},
+     g:"You can sketch the orchestrator's prompt and one worker's brief for a real question.", w:2, rel:[["09",5],["11",3]], r:0},
     {t:"Parallel fan-out for read-heavy research — the pattern that genuinely pays",
      e:"Fan-out pays on read-heavy research: independent subquestions explored in parallel, results merged. It's the one place where more agents reliably beat one.",
      g:"You can tell in advance whether a question decomposes into independent parallel parts.", w:2, r:0},
@@ -1188,6 +1194,79 @@ const ROADMAP = [
      hint:"Draws on concepts 1 and 2. Recall — these two checklists are the shipping vocabulary.",
      rubric:["Suggest → draft → act-with-approval → act autonomously","Promotion to the next rung is earned by measured reliability at the current one","A good first process: high volume, tolerant of review, clear success signal"]}
   ]
+},
+{
+  id:"11", title:"The Claude Ecosystem", hours:12, tier:"Workplace", verified:"2026-09-26",
+  why:"This is the toolchain you already work in every day. Almost nothing here is a new idea — it is modules 04 to 08 shipped as product features. Learning the mapping does double duty: it proves you understood the mechanisms, and it makes you fast in the tool you actually use.",
+  concepts:[
+    {t:"The two surfaces: Claude chat and Claude Code",
+     e:"Chat (web, desktop, mobile) is for thinking, drafting and agentic work on your own files; Claude Code is for repositories, terminals and long-running agent work. As of September 2026 the old three-way split — chat, Cowork, Design — is collapsing into these two as Cowork's agentic mode folds into chat.",
+     g:"Given a task, you can say which surface it belongs in and why, without guessing.", w:2, r:0},
+    {t:"Claude Code is a harness — module 04's loop with scaffolding around it",
+     e:"Strip away the features and Claude Code is the agent loop you wrote by hand: call the model, run the tool it asks for, append the result, repeat. What is wrapped around it — a tool set, context management, permissions — is the harness. Every feature below is a seam on that loop.",
+     g:"You can point at each part of Claude Code and name the module-04 concept it implements.", w:3, rel:[["04",2]], r:0},
+    {t:"Skills — reusable know-how the agent loads when it is relevant",
+     e:"A skill is a markdown directory describing how to do something, loaded into context only when it applies. It is the unit of reusable expertise, and because it is just markdown it travels across agents rather than locking you to one tool.",
+     g:"You can write a skill for a task you repeat, and say why it is a skill rather than a prompt or a tool.", w:3, r:3},
+    {t:"Subagents — isolated context windows for scoped or parallel work",
+     e:"A subagent runs a sub-task in its own clean context and reports back. This is module 08's orchestrator-worker pattern productised, with the same economics: you buy context isolation and parallelism, and you pay a handoff cost plus a token multiplier.",
+     g:"You can say when a subagent earns its handoff cost, using module 08's own test.", w:2, rel:[["08",0],["08",3]], r:0},
+    {t:"Hooks — deterministic code at lifecycle points, not instructions",
+     e:"A hook is a script that fires at a defined point in the loop; PreToolUse runs before any tool executes, which makes it a real gate. Instructions are probabilistic and can be argued with; a hook is code and simply runs.",
+     g:"You can name a rule you would enforce with a hook rather than an instruction, and say why a prompt cannot do that job.", w:2, rel:[["10",5],["06",6]], r:0},
+    {t:"Plugins and marketplaces — bundling and distributing all of the above",
+     e:"A plugin is a versioned bundle that can ship skills, subagents, slash commands, hooks and MCP server definitions as one installable unit. Marketplaces distribute them, and private enterprise marketplaces are how an organisation standardises and governs what its people run.",
+     g:"You can say what belongs in a plugin rather than a loose skill, and what a private marketplace buys an organisation.", w:2, r:0},
+    {t:"Connectors — MCP, surfaced as a product",
+     e:"The connectors in the Claude app are module 06's MCP wearing a friendlier name: the same client-server protocol, the same three primitives, the same least-privilege question. This is where your real work systems plug in.",
+     g:"You can connect a work system and state the narrowest scope that still does the job.", w:2, rel:[["06",2]], r:0},
+    {t:"Context and memory: CLAUDE.md, projects, and compaction",
+     e:"Module 05's context budget applied to your daily tool. Project instructions and memory files are re-injected rather than remembered; long sessions get compacted, which is lossy. Knowing what persists and what silently disappears is what separates a smooth session from a baffling one.",
+     g:"You can explain why a long session degrades, and act on it before it does.", w:3, rel:[["05",0],["00",1]], r:0},
+    {t:"Artifacts, Docs and Slides — where the deliverable lands",
+     e:"Output surfaces: artifacts for self-contained pages and apps, and the beta Docs and Slides for editable documents and decks that export to Office formats. Useful to know exists, and explicitly the part of this module most likely to have changed by the time you read it.",
+     g:"You know which output surface to ask for, and that this corner of the ecosystem is still moving.", w:1, r:4},
+    {t:"The developer platform: Agent SDK versus Managed Agents",
+     e:"The Agent SDK runs the same loop that powers Claude Code inside your own process, on your infrastructure. Managed Agents hands the harness, sandbox and session log to Anthropic behind an API. The published path is to prototype on the SDK and graduate to Managed Agents.",
+     g:"For a given project you can say which of the two it needs, and what you give up either way.", w:2, rel:[["03",0],["07",2]], r:2},
+    {t:"Products churn, mechanisms do not",
+     e:"Cowork launched, built an ecosystem, and was folded into chat inside a year. The loop, MCP, context budgeting and evaluation did not move at all. Bind your learning to the mechanisms and product news becomes a renaming exercise rather than a threat.",
+     g:"When a product changes, your first question is which mechanism it is re-packaging — and you can usually answer it.", w:3, rel:[["09",5]], r:5}
+  ],
+  skip:[
+    "Touring plugin directories and marketplace listings you will never install",
+    "Memorising IDE keybindings and terminal flags",
+    "Treating model-release news as a study activity",
+    "Re-learning MCP here — module 06 already taught the protocol"
+  ],
+  build:{goal:"Turn one repeated task into an extension, and prove you know which layer it belonged in.",
+    steps:[
+      "Pick a task you genuinely repeat most weeks.",
+      "Implement it three ways: as a slash command, as a skill, and — if any part of it is a rule that must not break — as a hook.",
+      "Write one paragraph naming which layer was correct and why each other one was wrong for this task.",
+      "Bundle the winner as a plugin and install it from a local marketplace.",
+      "Connect one real work system over MCP at least privilege, and complete a genuine task through it end to end."
+    ],
+    done:"A plugin you actually use weekly, plus a written layer-choice justification a colleague could follow to make the same call themselves."},
+  resources:[
+    {t:"docs", n:"Claude Code documentation", u:"https://code.claude.com/docs/", note:"The reference for every extension layer in this module. Skim the whole map once, then go deep only where your build needs it.", star:true},
+    {t:"docs", n:"Claude API documentation", u:"https://docs.claude.com/"},
+    {t:"docs", n:"Agent SDK overview", u:"https://code.claude.com/docs/en/agent-sdk/overview"},
+    {t:"code", n:"anthropics/skills — official skills", u:"https://github.com/anthropics/skills", note:"Read two before writing your own; the format is the lesson."},
+    {t:"docs", n:"Claude Cowork help article", u:"https://support.claude.com/en/articles/13345190-get-started-with-claude-cowork", note:"Cowork's agentic mode is being folded into chat — read this for what the capability does, not for where the button lives."},
+    {t:"essay", n:"Anthropic engineering blog", u:"https://www.anthropic.com/engineering", note:"Where the reasoning behind these products gets explained."}
+  ],
+  checks:[
+    {lv:1, q:"Name Claude Code's extension layers and say what each one is for.",
+     hint:"Draws on concepts 3–7. Recall — this vocabulary is how every setup discussion in this ecosystem is conducted.",
+     rubric:["Slash commands: saved prompt templates","Skills: markdown know-how loaded when relevant","Subagents: isolated context for scoped or parallel work","Hooks: deterministic scripts at lifecycle points, enforcing rules in code","Plugins: versioned bundles of the above plus MCP servers, distributed via marketplaces","MCP servers/connectors: external tools and data","Bonus: states the decision rule — template, know-how, isolation, enforcement, or distribution"]},
+    {lv:2, q:"A rule must never be broken. Why is a hook the right mechanism, when a very clearly worded instruction in CLAUDE.md is far easier to write?",
+     hint:"Draws on concept 5. The essence you need: instructions are probabilistic and live in the same context as untrusted input; hooks are code that runs regardless.",
+     rubric:["An instruction is a probability shift, not a guarantee — it can be missed, outweighed, or argued away","A hook is code: it runs deterministically at its lifecycle point, PreToolUse firing before the tool executes","Hooks are not vulnerable to injected text in tool results the way instructions are","Names the cost: hooks are rigid, need maintenance, and can block legitimate work","Bonus: connects to module 10 — enforcement belongs in structure, not in prompts"]},
+    {lv:3, q:"Your team must redact client names before anything leaves for an external service, and wants the same workflow shared across ten colleagues. Design it across the ecosystem's layers.",
+     hint:"Draws on concepts 3, 5, 6 and 7. The essence you need: enforcement in a hook, know-how in a skill, distribution in a plugin — and one thing that must NOT be a prompt instruction.",
+     rubric:["Redaction enforced by a PreToolUse hook, in code, before any external call","The workflow itself captured as a skill so it is reusable know-how","Bundled as a versioned plugin and distributed via a private marketplace so all ten run the same version","MCP connector scopes narrowed to least privilege as a second line of defence","States explicitly that the redaction rule must not be left as a prompt instruction","Bonus: how you would verify it — a test that attempts a leak and must fail"]}
+  ]
 }
 ];
 
@@ -1238,7 +1317,8 @@ function ms(id){
 const CONTENT_DATE = Date.parse("2026-08-28"); // when this curriculum was authored
 function freshness(mod){
   const a = ms(mod.id).audit;
-  const ts = Math.max(CONTENT_DATE, (a && a.ts) || 0);
+  const base = mod.verified ? Date.parse(mod.verified) : CONTENT_DATE;
+  const ts = Math.max(base, (a && a.ts) || 0);
   const days = (Date.now() - ts) / DAY;
   return {ts, tier: days < 120 ? "fresh" : days < 240 ? "soon" : "stale"};
 }
@@ -1280,14 +1360,21 @@ Be conservative: only flag genuine changes, not fashion. If nothing changed, a s
 /* ---- field radar ------------------------------------------------------ */
 /* Module audits catch rot in what's taught. The radar catches what isn't
    taught yet — new platforms, paradigms, entrants that are nobody's module. */
-const RADAR_SEED = {ts: Date.parse("2026-08-29"), seed:true, notes:
+const RADAR_SEEDS = [
+{ts: Date.parse("2026-09-26"), seed:true, notes:
+`[SHIFT] Claude Cowork is being folded into Claude chat (announced 16 Sep 2026) — the three-mode split of chat / Cowork / Design collapses to two, Claude Chat and Claude Code → module 11
+[TOOL] Claude Docs and Claude Slides — editable documents and decks built in conversation, exporting to Office formats; beta on Pro, Max, Team and Enterprise → module 11
+[NOUN] "agent mode" — the capability behind the old Cowork toggle, which is module 04's loop given filesystem tools and permission to use them; the mechanism never changed, only where the button lives
+[IGNORE] the product-naming churn itself — bind your learning to the loop, MCP and context budgeting, and this kind of news costs you an afternoon of relabelling at most`},
+{ts: Date.parse("2026-08-29"), seed:true, notes:
 `[SHIFT] DeepSeek Harness (dsh) — open-source agent harness (MIT, Aug 2026): the agent loop, model adapters, tools, skills and sandboxes are ALL swappable plugins; MCP servers are its tool layer; other agents can nest inside it → modules 04, 06
 [NOUN] "everything is a plugin" — the composability of the agent loop (04) plus MCP-style interop (06), applied to the harness itself; the one new idea is that the harness's own parts are replaceable
-[TOOL] dsh as a study object — read its architecture after writing your own loop in module 04; every part of it should be recognisable`};
+[TOOL] dsh as a study object — read its architecture after writing your own loop in module 04; every part of it should be recognisable`}
+];
 
 function lastScanTs(){
   const r = state.radar||[];
-  return Math.max(RADAR_SEED.ts, r.length ? r[0].ts : 0);
+  return Math.max(RADAR_SEEDS[0].ts, r.length ? r[0].ts : 0);
 }
 function fieldScanPrompt(){
   return `You are my field radar for applied AI. Use web search — this is about what happened in the CURRENT period, not your training data.
@@ -1486,11 +1573,11 @@ function meter(p){ return `<div class="meter"><span style="width:${(p*100).toFix
 /* ---- module dependency map -------------------------------------------- */
 function dagSvg(){
   const pos = {"00":[70,60],"01":[70,155],"02":[70,250],"03":[258,105],"04":[258,205],
-               "05":[458,48],"06":[458,122],"07":[458,200],"08":[458,275],"09":[648,115],"10":[648,230]};
+               "05":[458,48],"06":[458,122],"07":[458,200],"08":[458,275],"09":[648,115],"10":[648,230],"11":[648,340]};
   const names = {"00":"Ground truth","01":"Prompting","02":"Evaluation","03":"API & loop","04":"Tool calling",
-                 "05":"Retrieval","06":"MCP","07":"LangGraph","08":"Multi-agent","09":"Microsoft","10":"Shipping"};
+                 "05":"Retrieval","06":"MCP","07":"LangGraph","08":"Multi-agent","09":"Microsoft","10":"Shipping","11":"Claude stack"};
   const edges = [["00","01"],["01","02"],["02","03"],["03","04"],["04","05"],["04","06"],["04","07"],
-                 ["07","08"],["05","09"],["08","09"],["09","10"],["06","10"]];
+                 ["07","08"],["05","09"],["08","09"],["09","10"],["06","10"],["06","11"],["08","11"]];
   const tiers = [["Foundations",70],["Core Mechanics",258],["Systems",458],["Workplace",648]];
   const paths = edges.map(([a,b])=>{
     const [x1,y1] = pos[a], [x2,y2] = pos[b];
@@ -1511,7 +1598,7 @@ function dagSvg(){
       <text x="${x}" y="${y+31}" class="dag-name">${names[id]}</text>
     </a>`;
   }).join("");
-  return `<svg viewBox="0 0 730 340" class="dag" role="img" aria-label="Module dependency map">
+  return `<svg viewBox="0 0 730 400" class="dag" role="img" aria-label="Module dependency map">
     ${tiers.map(([t,x])=>`<text x="${x}" y="18" class="dag-tier">${t}</text>`).join("")}
     <g class="dag-edges">${paths}${evalEdge}</g>
     ${nodes}
@@ -1545,7 +1632,7 @@ function viewDashboard(){
           <h2>${started ? "Where you are" : "Start at 00 and go in order"}</h2>
           <p>${started
             ? `Weighted by estimated effort, not by module count. Roughly <strong class="num">${hoursLeft}</strong> focused hours of the plan remain.`
-            : `Eleven modules, about <strong class="num">130</strong> focused hours. The order is deliberate — modules 02 and 04 are the ones that make everything after them cheaper. You can jump anywhere, but skipping those two costs you later.`}</p>
+            : `Twelve modules, about <strong class="num">142</strong> focused hours. The order is deliberate — modules 02 and 04 are the ones that make everything after them cheaper. You can jump anywhere, but skipping those two costs you later.`}</p>
         </div>
         <div class="hero-figure">
           <span class="hero-num">${pct(o)}<sup>%</sup></span>
@@ -1610,14 +1697,14 @@ function viewDashboard(){
       <div class="card-h"><h3>The map — a graph, not a line</h3><span class="eyebrow">Edges are prerequisites, not locks</span></div>
       <div class="card-pad" style="overflow-x:auto">
         ${dagSvg()}
-        <p style="font-size:12.5px;color:var(--ink-3);margin-top:8px;max-width:66ch">After Tool Calling (04) the path genuinely branches — Retrieval, MCP and LangGraph are siblings, take them in any order. The dashed edge: Evaluation quietly underpins Shipping's metrics. Concepts also link sideways — open any concept and follow its “connects to” chips.</p>
+        <p style="font-size:12.5px;color:var(--ink-3);margin-top:8px;max-width:66ch">After Tool Calling (04) the path genuinely branches — Retrieval, MCP and LangGraph are siblings, take them in any order. The dashed edge: Evaluation quietly underpins Shipping's metrics. Module 11, the Claude stack, is placed last only because products churn faster than mechanisms — once you have 04 and 06 you can take it whenever you like. Concepts also link sideways — open any concept and follow its “connects to” chips.</p>
       </div>
     </section>
 
     ${(()=>{
       const dueAudit = ROADMAP.map(m=>({m, f:freshness(m)})).filter(x=>x.f.tier!=="fresh");
       const newest = Math.max(...ROADMAP.map(m=>freshness(m).ts));
-      const scans = [...(state.radar||[]), RADAR_SEED];
+      const scans = [...(state.radar||[]), ...RADAR_SEEDS];
       const scanAge = (Date.now() - lastScanTs()) / DAY;
       const scanDue = scanAge > 35;
       return `<section class="card">

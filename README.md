@@ -1,7 +1,7 @@
 # Edward's AI Roadmap
 
 A personal 80/20 learning roadmap — from LLM fundamentals to shipping agentic
-systems into real work processes. Eleven modules, roughly 130 focused hours.
+systems into real work processes. Twelve modules, roughly 142 focused hours.
 
 One self-contained `index.html`. No build step, no backend, no dependencies.
 Open it in a browser and it works.
@@ -151,6 +151,8 @@ Each module:
   hours:14,
   tier:"Core Mechanics",
   keystone:true,           // optional flag
+  verified:"2026-09-26",   // optional: when this module's content was last
+                           // checked. Omit to use the global CONTENT_DATE.
   why:"...",               // why this module earns its hours
   concepts:[               // the 20% worth learning
     {t:"the concept",      // shown in the list
