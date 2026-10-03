@@ -188,6 +188,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .dot.bad{background:var(--signal)}
 .sync-btns{display:flex;flex-wrap:wrap;gap:8px}
 .sync-panel{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+/* An author display rule beats the UA stylesheet's [hidden], so restate it. */
+.sync-panel[hidden]{display:none}
 .sync-help{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin:0}
 .sync-panel input{
   font:inherit;font-size:12px;font-family:var(--mono);
@@ -255,7 +257,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .core-chip{background:var(--accent-soft);border-color:transparent;color:var(--accent);margin-left:8px;flex:none}
 .later-chip{margin-left:8px;flex:none}
 .rel-chips{display:inline-flex;flex-wrap:wrap;gap:5px;margin-top:2px}
-.rel-chip{cursor:pointer;background:var(--panel);text-transform:none;letter-spacing:.02em;font-size:10.5px}
+.rel-chip{
+  cursor:pointer;background:var(--panel);text-transform:none;letter-spacing:.02em;font-size:10.5px;
+  /* Concept titles vary in length; clip rather than widen past the viewport. */
+  display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;
+}
+.rel-chips{max-width:100%}
 .rel-chip:hover{border-color:var(--accent);color:var(--accent)}
 .lv-chip{
   display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
@@ -293,6 +300,22 @@ li.flash{animation:flashbg 1.2s ease}
   display:inline-block;background:var(--signal);color:#fff;border-radius:99px;
   font-family:var(--mono);font-size:9.5px;padding:1px 6px;margin-left:7px;vertical-align:1px;
 }
+
+/* ---- depth track */
+.depth-list{display:flex;flex-direction:column;gap:18px}
+.depth-unit{border-left:2px solid var(--rule);padding:2px 0 2px 16px}
+.depth-unit.is-read{border-left-color:var(--good)}
+.depth-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.depth-head h4{font-size:15px;line-height:1.35;letter-spacing:-.01em}
+.depth-claim{font-size:14px;line-height:1.6;color:var(--ink-2);margin:8px 0 10px;max-width:70ch}
+.depth-meta{font-size:13px;color:var(--ink-2);line-height:1.55;margin:5px 0;max-width:70ch}
+.depth-src{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin:10px 0 10px;line-height:1.5}
+.depth-ratio{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.03em}
+.depth-ratio.warn{color:var(--signal)}
+.prov-extracted{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.prov-mirror{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.prov-synth{background:var(--sunken);border-color:var(--rule);color:var(--ink-3)}
+a.rel-chip{text-decoration:none}
 
 /* ---- freshness */
 .tier-soon{color:var(--warn)}
@@ -490,6 +513,10 @@ textarea::placeholder{color:var(--ink-3)}
     <a class="spine-link" href="#/review" id="revLink" style="padding-top:4px;padding-bottom:10px">
       <span class="rev-ic">↻</span>
       <span class="spine-t"><span class="spine-name" style="margin:0">Review<span class="rev-badge" id="revBadge" hidden></span></span></span>
+    </a>
+    <a class="spine-link" href="#/depth" id="depthLink" style="padding-top:4px;padding-bottom:10px">
+      <span class="rev-ic">▣</span>
+      <span class="spine-t"><span class="spine-name" style="margin:0">Depth<span class="rev-badge" id="depthBadge" hidden></span></span></span>
     </a>
     <ul class="spine" id="spine"></ul>
     <div class="rail-foot">
@@ -1270,6 +1297,132 @@ const ROADMAP = [
 }
 ];
 
+/* ============================================================================
+   DEPTH TRACK — rigour under the roadmap's working approximations
+   Units are distilled from primary source and reorganised by which roadmap
+   concept they upgrade, NOT by course order. Deliberately zero progress
+   weight: depth must earn its place by changing a decision, not by moving a
+   percentage. `prov` records where each unit came from — see the README.
+   ============================================================================ */
+const CS336 = n => ({c:"CS336 · Language Modeling from Scratch (Stanford, Spring 2026)", l:n,
+  u:`https://github.com/stanford-cs336/lectures/blob/main/lecture_${String(n).padStart(2,"0")}.${[1,2,6,7,10,12,13,14,17].includes(n)?"py":"pdf"}`});
+
+const DEPTH = [
+{id:"d-prefill", title:"Why the first token is slow and the rest arrive steadily",
+ upgrades:[["03",1],["03",2],["00",1]],
+ approx:"Generation takes a while, and streaming makes it feel faster.",
+ claim:"Inference runs in two stages with opposite characteristics. Prefill reads your whole prompt at once and can be parallelised like training, so it is compute-bound. Decode then emits one token at a time and cannot be parallelised, so the GPU spends most of its time moving weights rather than computing — it is memory-bound. Time-to-first-token and per-token latency are therefore two different numbers with two different cures.",
+ trigger:"When a latency number surprised you, or you were asked to 'make it faster' and didn't know where to push.",
+ decision:"Whether to attack prompt size or output length — they land on different stages and only one is your bottleneck.",
+ payoff:"You can say which half of a slow request to attack, instead of guessing.",
+ src:{...CS336(10), t:"Lecture 10 — Inference", kind:"executable lecture"}, prov:"extracted", mins:20},
+
+{id:"d-kvcache", title:"The KV cache, and why long context costs more than it looks",
+ upgrades:[["00",1],["03",2],["05",0]],
+ approx:"Longer prompts cost more because you pay per token.",
+ claim:"Generating naively would re-read the whole history for every new token — cubic work in sequence length. The KV cache avoids that by storing a vector for every sequence, token, layer and attention head in GPU memory. So context does not just cost tokens: it occupies the exact memory bandwidth that decode is already starved for. Long sessions get slower as well as dearer, and the two are the same cause.",
+ trigger:"When a long-running chat or agent session got sluggish and expensive at the same time.",
+ decision:"Whether to trim, summarise or externalise context — and how aggressively.",
+ payoff:"You treat context as a memory budget, not just a bill.",
+ src:{...CS336(10), t:"Lecture 10 — Inference", kind:"executable lecture"}, prov:"extracted", mins:20},
+
+{id:"d-prefix", title:"Why prompt caching rewards a stable prefix",
+ upgrades:[["03",3],["01",0]],
+ approx:"Put the stable content first and the provider gives you a discount.",
+ claim:"Serving stacks exploit the fact that live traffic shares prefixes — the same system prompt, the same document, several samples from one query. Reusing already-computed KV state for a shared prefix is a server-side optimisation (vLLM's PagedAttention, SGLang's RadixAttention), not a billing promise. That is why the discipline is byte-stability from the start of the prompt: the moment the prefix diverges, the reuse stops.",
+ trigger:"After you measured a caching saving — or failed to get one you expected.",
+ decision:"How to order a prompt, and what must never be interpolated near the top.",
+ payoff:"You can predict whether a prompt will cache before you run it.",
+ src:{...CS336(10), t:"Lecture 10 — Inference", kind:"executable lecture"}, prov:"extracted", mins:15},
+
+{id:"d-bound", title:"Memory-bound versus compute-bound: the number behind batching",
+ upgrades:[["03",2],["03",6],["08",6]],
+ approx:"Batch APIs are cheaper because the provider is less rushed.",
+ claim:"Arithmetic intensity is compute performed per byte moved. Hardware has a threshold — on an H100 a matmul only becomes compute-bound above a batch of roughly 295. A single interactive request sits at intensity 1: maximally memory-bound, paying full bandwidth for one token. Batching is what converts memory-bound work into compute-bound work, which is the actual reason batch pricing exists and why throughput and latency are traded against each other.",
+ trigger:"When choosing between an interactive call and a batch job, or sizing a parallel fan-out.",
+ decision:"Interactive versus batch, and how wide to fan out parallel work.",
+ payoff:"You can explain provider pricing tiers from the hardware up.",
+ src:{...CS336(10), t:"Lecture 10 — Inference", kind:"executable lecture"}, prov:"extracted", mins:20},
+
+{id:"d-agentcost", title:"Agents spend compute by generating tokens, and generation is unbounded",
+ upgrades:[["04",6],["08",6],["10",6]],
+ approx:"Agents cost more because they make several calls.",
+ claim:"CS336 frames an agent as query → internal trace → output for a human, and notes the number of tokens generated can grow without bound. Tokens generated are compute spent. Unlike a chatbot, where a human reading speed caps output, an agent's internal trace has no natural ceiling — which makes the step cap and token budget from Module 04 a cost control, not merely a safety rail.",
+ trigger:"The first time an agent run cost far more than you estimated.",
+ decision:"Where to set step caps and budgets, and whether a loop is economically viable at all.",
+ payoff:"You size an agent's budget before building it, not after the invoice.",
+ src:{...CS336(10), t:"Lecture 10 — Inference", kind:"executable lecture"}, prov:"extracted", mins:15},
+
+{id:"d-tokenization", title:"What the model's atoms actually are",
+ upgrades:[["00",0],["03",2]],
+ approx:"Text is chopped into tokens, which are roughly word-pieces.",
+ claim:"A tokenizer converts raw bytes into integers, usually by Byte-Pair Encoding — merging frequently-occurring chunks. It buys two things: shorter context (around 1000 bytes becomes roughly 250 tokens) and adaptive computation, since more modelling capacity lands on the interesting parts of the input. Tokenizer-free architectures operating directly on bytes are promising but have not been scaled to the frontier, so the quirks are not going away soon.",
+ trigger:"After your Module 00 failure-mode card produced a character-level surprise.",
+ decision:"Whether a task is fighting the tokenizer, and whether non-English or code content will cost more than you budgeted.",
+ payoff:"Character-level and multilingual oddities stop being mysteries.",
+ src:{...CS336(1), t:"Lecture 1 — Overview and tokenization", kind:"executable lecture"}, prov:"extracted", mins:15},
+
+{id:"d-construct", title:"Every evaluation is a construct squeezed into a metric",
+ upgrades:[["02",0],["02",2]],
+ approx:"Write an eval set, score it, track the pass rate.",
+ claim:"CS336 names the core challenge of evaluation as turning an abstract construct into a concrete metric, and is blunt that there is no one true evaluation — you choose it according to what you are trying to measure, and you state the rules of the game. The three considerations are difficulty, realism and validity. Validity is the one practitioners skip: whether the number actually stands for the thing you care about.",
+ trigger:"When your pass rate rose but the system did not feel better — or the reverse.",
+ decision:"What your eval actually measures, and whether it deserves the authority you are giving it.",
+ payoff:"You can defend an eval set against the question 'but does that number mean anything?'",
+ src:{...CS336(12), t:"Lecture 12 — Evaluation", kind:"executable lecture"}, prov:"extracted", mins:20},
+
+{id:"d-saturation", title:"Why benchmarks keep saturating, and why yours shouldn't be one",
+ upgrades:[["02",6],["03",6]],
+ approx:"Benchmarks measure models; newer models score higher.",
+ claim:"The benchmark ladder — MMLU, then MMLU-Pro after trivial questions were stripped and choices widened, then GPQA where PhD experts reach 65% and non-experts with Google reach 34%, then Humanity's Last Exam — is a record of saturation, not of progress in measurement. Multiple choice can be made arbitrarily hard, but it still does not capture real usage, which is open-ended and often has no single correct answer. That gap is precisely why your own twenty rows beat a leaderboard.",
+ trigger:"When you were tempted to choose a model from a benchmark table.",
+ decision:"How much weight to give any public benchmark when selecting a model.",
+ payoff:"You read leaderboards as weak evidence about your task, which is what they are.",
+ src:{...CS336(12), t:"Lecture 12 — Evaluation", kind:"executable lecture"}, prov:"extracted", mins:15},
+
+{id:"d-sft", title:"Why a model follows instructions at all",
+ upgrades:[["00",4],["01",0],["01",5]],
+ approx:"Models are trained to be helpful, so instructions work.",
+ claim:"Pre-training gets you something like GPT-3: good at continuation, not at being told what to do. Instruction following is a control layer added afterwards, because pre-training data is not what we want even though it scales. The recipe is imitation first — supervised fine-tuning on collected examples of desired behaviour — then reinforcement. Instruction following is therefore a trained behaviour with a distribution behind it, which is exactly why it bends under unusual phrasing and can be overridden by content in the context.",
+ trigger:"When an instruction you were sure about was quietly ignored.",
+ decision:"How much to trust an instruction versus enforcing the rule in code.",
+ payoff:"You know in your gut why Module 10 puts enforcement in hooks rather than prompts.",
+ src:{...CS336(15), t:"Lecture 15 — After pretraining (mid/post-training)", kind:"slides"}, prov:"extracted", mins:20},
+
+{id:"d-reasoning", title:"What actually changed to produce reasoning models",
+ upgrades:[["00",5],["03",6],["01",4]],
+ approx:"Reasoning models think longer before answering.",
+ claim:"Pre-training plus RLHF lands around GPT-3.5, and RLHF cannot be scaled out cleanly because it over-optimises against a learned reward model. The step to o1/r1-class reasoning came from moving into domains where the reward is verifiable — maths and code, where you can optimise exactly what you want rather than a proxy — with the algorithmic line running PPO to GRPO. That is why reasoning models shine where answers can be checked and help less where they cannot.",
+ trigger:"Before paying the reasoning-model premium on a task.",
+ decision:"Whether your task resembles the verifiable domains these models were trained on.",
+ payoff:"You can predict where a reasoning model earns its cost rather than testing blind.",
+ src:{...CS336(16), t:"Lecture 16 — Post-training II, RL from verifiable rewards", kind:"slides"}, prov:"extracted", mins:20},
+
+{id:"d-data", title:"The data behind the model is a legal and quality artefact",
+ upgrades:[["05",1],["10",8],["02",1]],
+ approx:"Models are trained on 'the internet'.",
+ claim:"CS336 devotes two lectures to data, and they open on intellectual property law before any technique — because provenance is a constraint on what may be trained on, not a footnote. The engineering is model-based filtering for quality and near-duplicate detection by Jaccard similarity, since duplicated text both wastes training compute and contaminates evaluation. Train-test overlap is treated as a first-class evaluation threat, not an edge case.",
+ trigger:"When you built a corpus for retrieval, or were asked where a model's training data came from.",
+ decision:"How you treat provenance and duplication in your own corpora and eval sets.",
+ payoff:"You can answer a compliance question about data without bluffing.",
+ src:{...CS336(13), t:"Lectures 13–14 — Data", kind:"executable lecture"}, prov:"extracted", mins:15}
+];
+
+/* Courses worth knowing about that I could not read — listed honestly rather
+   than paraphrased into units. See the README on provenance. */
+const DEPTH_POINTERS = [
+ {n:"CS224G — Building and Scaling LLM Applications", u:"https://web.stanford.edu/class/cs224g/",
+  w:"Context engineering, RAG 2.0, agentic workflows, evaluation and red teaming — the closest match to modules 05, 07 and 02.", why:"Project course; materials are on Stanford's site, which this app's author could not reach."},
+ {n:"CS224V — Agentic AI", u:"https://cs224v.stanford.edu/",
+  w:"Agentic AI principles, hallucination reduction via RAG, hybrid reasoning over databases and unstructured text. Parallels modules 04–08.", why:"Project course, site not reachable."},
+ {n:"CS329A — Self-Improving AI Agents", u:"https://cs329a.stanford.edu/",
+  w:"Tool use, memory, multi-step reasoning and robust evaluation frameworks for agents.", why:"Site not reachable."},
+ {n:"CS25 — Transformers United V6", u:"https://cs25.stanford.edu/",
+  w:"Seminar series with frontier researchers; individual talks are very cherry-pickable.", why:"YouTube-first, and video is not reachable from here."},
+ {n:"CS229 / CS224N — Machine Learning, NLP with Deep Learning", u:"https://github.com/maxim5/cs229-2019-summer",
+  w:"Classical ML and the pre-LLM NLP lineage, on YouTube with community mirrors of notes and assignments.", why:"Deliberately thin: excellent material, but it is not your bottleneck. Take it only if you find yourself needing to train or fine-tune a model rather than call one."}
+];
+
 /* Capstone shown on the dashboard once things are underway. */
 const CAPSTONE = [
   "An internal assistant grounded in your team's real documents, with a measured recall@5 and a published eval pass rate.",
@@ -1398,6 +1551,19 @@ Output at most 8 ranked one-liners, most important first, no preamble:
 If the window was genuinely quiet, say so in one line. Do not pad.`;
 }
 
+/* ---- depth track state (deliberately absent from all progress maths) --- */
+function ds(id){
+  state.depth = state.depth || {};
+  if(!state.depth[id]) state.depth[id] = {read:0, note:"", rev:null};
+  return state.depth[id];
+}
+function depthRead(){ return DEPTH.filter(u=>ds(u.id).read).length; }
+function buildsShipped(){ return ROADMAP.filter(m=>ms(m.id).build).length; }
+/* Depth units that upgrade a given roadmap concept. */
+function depthFor(modId, i){
+  return DEPTH.filter(u=>u.upgrades.some(([m,c])=>m===modId && c===i));
+}
+
 /* ---- spaced repetition ------------------------------------------------ */
 const DAY = 864e5;
 const LV_META = {
@@ -1464,8 +1630,21 @@ function dueItems(ahead){
       if(r && r.due <= now && s.checks[i] === "pass") items.push({type:"q", mod, i, w:3, due:r.due});
     });
   }
+  for(const u of DEPTH){
+    const d = state.depth && state.depth[u.id];
+    if(d && d.read && d.rev && d.rev.due <= now) items.push({type:"d", unit:u, w:2, due:d.rev.due});
+  }
   items.sort((a,b)=> b.w - a.w || a.due - b.due);
   return items;
+}
+function gradeDepth(id, grade){
+  const d = ds(id);
+  const r = d.rev || (d.rev = {iv:1, due:0, streak:0});
+  if(grade === "forgot"){ r.iv = 1; r.streak = 0; }
+  else if(grade === "shaky"){ r.iv = Math.max(1, Math.round(r.iv*0.6)); r.streak = 0; }
+  else { r.streak = (r.streak||0)+1; r.iv = r.iv < 2 ? 3 : r.iv < 4 ? 7 : Math.min(60, Math.round(r.iv*2.3)); }
+  r.due = Date.now() + r.iv*DAY;
+  save();
 }
 function nextDueDate(){
   let min = null;
@@ -1473,6 +1652,10 @@ function nextDueDate(){
     const s = ms(mod.id);
     for(const k in s.rev) if(min === null || s.rev[k].due < min) min = s.rev[k].due;
     for(const k in s.chkRev) if(s.checks[k] === "pass" && (min === null || s.chkRev[k].due < min)) min = s.chkRev[k].due;
+  }
+  for(const u of DEPTH){
+    const d = state.depth && state.depth[u.id];
+    if(d && d.read && d.rev && (min === null || d.rev.due < min)) min = d.rev.due;
   }
   return min;
 }
@@ -1533,7 +1716,7 @@ let session = null;           // active review session: {queue:[{type,m,i}], idx
 
 function startSession(ahead){
   session = {
-    queue: dueItems(ahead).slice(0,15).map(x=>({type:x.type, m:x.mod.id, i:x.i})),
+    queue: dueItems(ahead).slice(0,15).map(x=>({type:x.type, m:x.mod && x.mod.id, i:x.i, u:x.unit && x.unit.id})),
     idx: 0, flipped: false,
     counts: {forgot:0, shaky:0, solid:0}
   };
@@ -1562,6 +1745,13 @@ function renderSpine(){
   document.getElementById("dashLink").querySelector(".node").style.setProperty("--p", overall().toFixed(3));
   const revLink = document.getElementById("revLink");
   revLink.setAttribute("aria-current", route === "/review" ? "page" : "false");
+  const dl = document.getElementById("depthLink");
+  dl.setAttribute("aria-current", route === "/depth" ? "page" : "false");
+  const db = document.getElementById("depthBadge");
+  const unread = DEPTH.length - depthRead();
+  db.hidden = unread === 0;
+  db.textContent = unread;
+  db.style.background = "var(--ink-3)";
   const dueN = dueItems().length;
   const badge = document.getElementById("revBadge");
   badge.hidden = dueN === 0;
@@ -1814,6 +2004,7 @@ function viewModule(id){
             <p><span class="cd-label">The essence</span>${esc(c.e)}</p>
             <p class="cd-got"><span class="cd-label">You've got it when</span>${esc(c.g)}</p>
             ${(()=>{ const e = s.expl[i]; return e ? `<p><span class="cd-label">Your explanation (${fmtDate(e.ts)})</span>${esc(e.text)}</p>` : ""; })()}
+            ${(()=>{ const du = depthFor(id, i); return du.length ? `<p><span class="cd-label">Go deeper</span><span class="rel-chips">${du.map(u=>`<a class="chip rel-chip" href="#/depth" title="${esc(u.title)}">▣ ${esc(u.title.length>46?u.title.slice(0,44)+"…":u.title)}</a>`).join("")}</span></p>` : ""; })()}
             ${c.rel && c.rel.length ? `<p style="margin-bottom:0"><span class="cd-label">Connects to</span><span class="rel-chips">${
               c.rel.map(([tm,ti])=>{
                 const tmod = ROADMAP.find(x=>x.id===tm);
@@ -1960,6 +2151,36 @@ function viewReview(){
   }
 
   const cur = session.queue[session.idx];
+  if(cur.type === "d"){
+    const u = DEPTH.find(x=>x.id===cur.u);
+    const d = ds(u.id);
+    return `<div class="view stack">
+      <section class="card card-pad rev-card">
+        <div class="rev-head">
+          <span class="eyebrow">Card ${session.idx+1} / ${session.queue.length} · Depth</span>
+          <button class="btn" data-act="revExit">End session</button>
+        </div>
+        <span class="chip prov-extracted">depth</span>
+        <h2 class="rev-q">${esc(u.title)}</h2>
+        ${!session.flipped ? `
+          <p class="rev-sub">State the mechanism from memory, then what decision it changes.</p>
+          <textarea data-act="revExpl" placeholder="From memory…" style="margin-top:12px"></textarea>
+          <div class="q-actions" style="margin-top:12px"><button class="btn primary" data-act="revFlip">Flip</button></div>
+        ` : `
+          ${d.note ? `<div class="rev-expl"><span class="cd-label">What you took from it</span>${esc(d.note)}</div>` : ""}
+          <div class="concept-detail" style="margin:12px 0 0">
+            <p><span class="cd-label">The mechanism</span>${esc(u.claim)}</p>
+            <p class="cd-got"><span class="cd-label">The decision it changes</span>${esc(u.decision)}</p>
+          </div>
+          <div class="q-actions" style="margin-top:16px">
+            <button class="btn rev-bad" data-act="revGrade" data-g="forgot">Forgot</button>
+            <button class="btn rev-mid" data-act="revGrade" data-g="shaky">Shaky</button>
+            <button class="btn rev-good" data-act="revGrade" data-g="solid">Solid</button>
+          </div>
+        `}
+      </section>
+    </div>`;
+  }
   const mod = ROADMAP.find(m=>m.id===cur.m);
   const s = ms(cur.m);
   const head = `<div class="rev-head">
@@ -2019,12 +2240,86 @@ function viewReview(){
   </div>`;
 }
 
+/* ---- depth track ------------------------------------------------------ */
+const PROV_LABEL = {extracted:["extracted from source","prov-extracted"],
+                    mirror:["community mirror","prov-mirror"],
+                    synthesized:["synthesized","prov-synth"]};
+
+function depthCard(u){
+  const d = ds(u.id);
+  const [plabel, pclass] = PROV_LABEL[u.prov] || PROV_LABEL.synthesized;
+  const ups = u.upgrades.map(([m,i])=>{
+    const mod = ROADMAP.find(x=>x.id===m); const c = mod && mod.concepts[i];
+    return c ? `<button class="chip rel-chip" data-act="linkConcept" data-tm="${m}" data-ti="${i}" title="${esc(c.t)}">${m} · ${esc(c.t.split(":")[0].split(" — ")[0])}</button>` : "";
+  }).join("");
+  return `<div class="depth-unit${d.read?" is-read":""}" id="d-${u.id}">
+    <div class="depth-head">
+      <h4>${esc(u.title)}</h4>
+      <span class="chip ${pclass}">${plabel}</span>
+    </div>
+    <p class="depth-claim">${esc(u.claim)}</p>
+    <p class="depth-meta"><span class="cd-label">Read this when</span>${esc(u.trigger)}</p>
+    <p class="depth-meta"><span class="cd-label">The decision it changes</span>${esc(u.decision)}</p>
+    <p class="depth-meta"><span class="cd-label">Upgrades</span><span class="rel-chips">${ups}</span></p>
+    <p class="depth-src">${esc(u.src.c)} · <a href="${esc(u.src.u)}" target="_blank" rel="noopener">${esc(u.src.t)}</a> · ${esc(u.src.kind)} · ~${u.mins} min</p>
+    <div class="q-actions">
+      <button class="btn primary" data-act="depthCopy" data-u="${u.id}">Copy depth prompt</button>
+      <button class="btn ${d.read?"rev-good":""}" data-act="depthRead" data-u="${u.id}">${d.read?"✓ Read "+fmtDateY(d.read):"Mark read"}</button>
+    </div>
+    ${d.read?`<textarea data-act="depthNote" data-u="${u.id}" placeholder="One line: what you took from it…" style="margin-top:10px;min-height:52px;font-size:13px">${esc(d.note||"")}</textarea>`:""}
+  </div>`;
+}
+
+function viewDepth(){
+  const read = depthRead(), total = DEPTH.length, builds = buildsShipped();
+  const outpacing = read >= 3 && read > builds * 3;
+  const byMod = {};
+  for(const u of DEPTH){
+    const m = u.upgrades[0][0];
+    (byMod[m] = byMod[m] || []).push(u);
+  }
+  return `<div class="view stack">
+    <section class="card">
+      <div class="hero" style="grid-template-columns:minmax(0,1fr) auto">
+        <div>
+          <span class="eyebrow">Depth track · rigour on demand</span>
+          <h2>The stone under the intuitions</h2>
+          <p>Units distilled from primary course material and reorganised by which of <em>your</em> concepts they upgrade — not by course order. They carry <strong>no progress weight</strong>, deliberately: depth earns its place by changing a decision, not by moving a percentage. Read one when its trigger has actually happened to you; reading ahead of the trigger is how this becomes procrastination.</p>
+        </div>
+        <div class="hero-figure"><span class="hero-num">${read}<sup>/${total}</sup></span></div>
+      </div>
+      <div class="card-pad" style="padding-top:0">
+        <p class="depth-ratio${outpacing?" warn":""}">Units read: <strong class="num">${read}</strong> · builds shipped: <strong class="num">${builds}</strong>${outpacing?" — reading is outpacing building. The builds are what can't be faked; go ship one.":""}</p>
+      </div>
+    </section>
+
+    ${Object.keys(byMod).sort().map(m=>{
+      const mod = ROADMAP.find(x=>x.id===m);
+      return `<section class="card">
+        <div class="card-h"><h3>Depth for ${m} · ${esc(mod.title)}</h3><span class="eyebrow">${byMod[m].length} unit${byMod[m].length>1?"s":""}</span></div>
+        <div class="card-pad depth-list">${byMod[m].map(depthCard).join("")}</div>
+      </section>`;
+    }).join("")}
+
+    <section class="card">
+      <div class="card-h"><h3>Where Stanford goes deeper than this roadmap</h3><span class="eyebrow">Not extracted — read the note</span></div>
+      <div class="card-pad" style="font-size:13.5px;color:var(--ink-2);line-height:1.6">
+        <p style="margin-bottom:10px">These courses would extend the roadmap most — and are the ones whose material could not be reached from here. They are listed as signposts, deliberately <strong>not</strong> paraphrased into units: writing them from general knowledge would put a Stanford label on content with no Stanford in it.</p>
+        <ul style="margin:0;padding-left:18px">
+          ${DEPTH_POINTERS.map(x=>`<li style="margin:7px 0"><a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.n)}</a> — ${esc(x.w)} <span style="color:var(--ink-3)">(${esc(x.why)})</span></li>`).join("")}
+        </ul>
+        <p style="margin-top:12px;color:var(--ink-3);font-size:12.5px">To turn these into real units: open network access to the course hosts, or paste a transcript or lecture notes and ask for the extraction.</p>
+      </div>
+    </section>
+  </div>`;
+}
+
 /* ---- router ----------------------------------------------------------- */
 let lastRoute = null;
 function render(){
   const route = location.hash.replace(/^#/,"") || "/";
   const m = route.match(/^\/m\/(.+)$/);
-  main.innerHTML = route === "/review" ? viewReview() : m ? viewModule(m[1]) : viewDashboard();
+  main.innerHTML = route === "/review" ? viewReview() : route === "/depth" ? viewDepth() : m ? viewModule(m[1]) : viewDashboard();
   renderSpine();
   // Only jump to top on navigation — in-page interactions keep scroll position.
   if(route !== lastRoute){
@@ -2105,6 +2400,41 @@ Teach it in this order. Each step below has a deliberately different job — do 
 If I want to go deeper, point me at: ${src.n}${src.u?" — "+src.u:""}`:""}`;
 }
 
+function depthPrompt(u){
+  const ups = u.upgrades.map(([m,i])=>{
+    const mod = ROADMAP.find(x=>x.id===m);
+    const c = mod && mod.concepts[i];
+    return c ? `module ${m} · ${c.t}` : `module ${m}`;
+  }).join("; ");
+  return `Act as a tutor for one depth unit. I already hold a working rule; your job is to replace it with the mechanism underneath.
+
+UNIT: ${u.title}
+SOURCE: ${u.src.c}, ${u.src.t} (${u.src.kind})
+THE EXTRACTED CLAIM: ${u.claim}
+
+WHAT I ALREADY BELIEVE (from my roadmap — ${ups}):
+${u.approx}
+
+THE PAYOFF I'M AFTER: ${u.payoff}
+
+Teach it in this order. Each step has a different job — do not repeat content between them.
+
+1. DEEP DIVE — one turn of the intuition–logic double helix (David Bessis, "Mathematica"). Logic exists to UPGRADE the approximation above, not to bury me in a textbook. I should finish able to SEE why the mechanism must be true. 450 words MAXIMUM, five labelled parts:
+   a. THE WORKING APPROXIMATION — restate what I already believe, generously, and say what it gets right. It is useful and probably mostly correct.
+   b. THE MECHANISM — what actually happens, grounded in the claim above. Precise and literal, no metaphor yet.
+   c. WHERE IT BREAKS — the exact case where my simplified picture predicts the wrong thing, and what that error costs me in money, latency, or a bad architectural call. Do NOT smooth this over. If my approximation does not actually break, say so plainly and sharpen its boundary instead of inventing a conflict.
+   d. THE REBUILT INTUITION — a picture with the mechanism baked in, so the behaviour becomes obvious rather than memorised. Something I can see or feel.
+   e. THE DECISION IT CHANGES — one concrete call I would now make differently. Be specific; if it changes no decision, say that honestly.
+   Spend the words on (c) and (d).
+2. QUIZ ME — exactly three questions, one at a time, waiting for my answer before the next. Push back on vague answers.
+   - LV1 RECALL: can I state the mechanism accurately?
+   - LV2 REASONING: can I explain why it must work that way?
+   - LV3 TRANSFER: pose a real engineering decision from ordinary office-tool work and make me apply the mechanism to it — a cost, latency or model-choice call.
+3. VERDICT — have I earned the payoff above, yes or no? If my answers showed the old approximation still running underneath, name it specifically.
+
+Primary source: ${u.src.u}`;
+}
+
 async function copy(text, msg){
   try{
     await navigator.clipboard.writeText(text);
@@ -2152,14 +2482,16 @@ document.addEventListener("click", e=>{
     const ta = document.querySelector("textarea[data-act='revExpl']");
     if(ta && ta.value.trim()){
       const cur = session.queue[session.idx];
-      ms(cur.m).expl[cur.i] = {text: ta.value.trim(), ts: Date.now()};
+      if(cur.type === "d") ds(cur.u).note = ta.value.trim();
+      else ms(cur.m).expl[cur.i] = {text: ta.value.trim(), ts: Date.now()};
       save();
     }
     session.flipped = true; render();
   }
   if(act === "revGrade"){
     const cur = session.queue[session.idx];
-    gradeConcept(cur.m, cur.i, el.dataset.g);
+    if(cur.type === "d") gradeDepth(cur.u, el.dataset.g);
+    else gradeConcept(cur.m, cur.i, el.dataset.g);
     session.counts[el.dataset.g]++;
     session.idx++; session.flipped = false; render();
   }
@@ -2183,6 +2515,17 @@ document.addEventListener("click", e=>{
       save(); render(); toast("Module marked audited");
     }
   }
+  if(act === "depthCopy"){
+    const u = DEPTH.find(x=>x.id===el.dataset.u);
+    copy(depthPrompt(u), "Depth prompt copied — paste it into Claude");
+  }
+  if(act === "depthRead"){
+    const d = ds(el.dataset.u);
+    if(d.read){ d.read = 0; d.rev = null; }
+    else { d.read = Date.now(); d.rev = {iv:1, due:Date.now()+DAY, streak:0}; }
+    save(); render();
+  }
+  if(act === "depthNote"){ /* handled by the input listener */ }
   if(act === "radarCopy"){
     copy(fieldScanPrompt(), "Field-scan prompt copied — paste into Claude with web search on");
   }
@@ -2226,7 +2569,9 @@ document.addEventListener("input", e=>{
   const ans = e.target.closest("textarea[data-act='answer']");
   const aud = e.target.closest("textarea[data-act='auditNotes']");
   const rad = e.target.closest("textarea[data-act='radarNotes']");
-  if(!ans && !aud && !rad) return;
+  const dep = e.target.closest("textarea[data-act='depthNote']");
+  if(!ans && !aud && !rad && !dep) return;
+  if(dep) ds(dep.dataset.u).note = dep.value;
   if(ans) ms(ans.dataset.m).answers[+ans.dataset.i] = ans.value;
   if(aud){
     ms(aud.dataset.m).auditDraft = aud.value;

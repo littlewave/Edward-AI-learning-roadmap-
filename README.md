@@ -110,6 +110,38 @@ seconds after every change; **Sync now** forces a round-trip.
 - The claude.ai artifact viewer blocks external requests, so sync only works
   on the GitHub Pages copy or a local file.
 
+## Depth track
+
+The sidebar's **Depth** page holds units of rigour distilled from primary
+course material — currently Stanford **CS336, Language Modeling from
+Scratch** — reorganised by which roadmap concept they upgrade rather than by
+course order. They are the "logic" half of the intuition–logic helix: the
+roadmap gives you a working approximation, a depth unit shows where that
+approximation breaks.
+
+Each unit carries the extracted claim, the approximation it replaces, the
+trigger ("read this when…"), the decision it changes, its source, and a
+**Copy depth prompt** button. That prompt is the lean three-step version:
+helix deep dive (working approximation → mechanism → where it breaks →
+rebuilt intuition → the decision it changes), then an LV1/LV2/LV3 quiz, then
+a verdict.
+
+Two rules keep it honest:
+
+- **Zero progress weight.** Reading a unit never moves your percentage.
+  Depth earns its place by changing a decision. The page shows a
+  units-read vs builds-shipped ratio and says so when reading outpaces
+  building.
+- **Provenance on every unit.** *Extracted from source* means it was
+  distilled from material that was actually read and can be cited.
+  *Community mirror* and *synthesized* mean exactly what they say. Courses
+  whose material could not be reached are listed as signposts rather than
+  paraphrased into units — a Stanford label on content with no Stanford in
+  it would be worse than no unit at all.
+
+A unit entering the review pool once read means the rigour gets the same
+spaced repetition as everything else.
+
 ## Keeping the curriculum current
 
 AI moves monthly; the content here was authored August 2026. Each module
