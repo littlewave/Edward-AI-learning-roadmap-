@@ -123,8 +123,8 @@ Each unit carries the extracted claim, the approximation it replaces, the
 trigger ("read this when…"), the decision it changes, its source, and a
 **Copy depth prompt** button. That prompt is the lean three-step version:
 helix deep dive (working approximation → mechanism → where it breaks →
-rebuilt intuition → the decision it changes), then an LV1/LV2/LV3 quiz, then
-a verdict.
+rebuilt intuition, with a diagram beneath it → the decision it changes),
+then an LV1/LV2/LV3 quiz, then a verdict.
 
 Two rules keep it honest:
 
@@ -210,7 +210,9 @@ expanded row). Claude teaches that single concept in six steps:
 2. **Deep dive** as one turn of the **intuition–logic double helix** (David
    Bessis, *Mathematica*): your naive mental picture, the exact mechanism,
    the collision where the picture predicts the wrong thing, a rebuilt
-   intuition with the mechanism baked in, then a test — 450 words max.
+   intuition with the mechanism baked in — followed by one clean diagram
+   of it, in whatever form the tutor judges explains it best — then a
+   test. 450 words max; the diagram doesn't count toward that.
    Logic is used to upgrade intuition, not suppress it, so you end able to
    see why the mechanism must be true.
 3. **Worked example** traced end to end in ordinary office work.
